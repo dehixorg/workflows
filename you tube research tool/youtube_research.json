@@ -1,0 +1,864 @@
+{
+  "name": "youtube research",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "3525a636-a375-4f35-81a5-68855177db67",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1344,
+        656
+      ],
+      "webhookId": "yt-tg-trigger-001"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "rawText",
+              "value": "={{ $json.message.text.trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "p2",
+              "name": "videoType",
+              "value": "={{ $json.message.text.trim().toLowerCase().startsWith('short') ? 'short' : 'long' }}",
+              "type": "string"
+            },
+            {
+              "id": "p3",
+              "name": "topic",
+              "value": "={{ $json.message.text.trim().replace(/^(short|long)\\s*/i, '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "p4",
+              "name": "chatId",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d581b8eb-1d2c-4924-8d14-a6a81e14b6d8",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1120,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=📚 <b>Deep Research Tool</b>\n\n📌 <b>Topic:</b> {{ $json.topic }}\n🎥 <b>Type:</b> {{ $json.videoType === 'short' ? '⚡ Quick Research' : '📽 Deep Research' }}\n\n🔍 Analyzing sources from web, YouTube, articles &amp; blogs...\n⏳ Give me 2 minutes!",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "6130d332-15cd-4a0e-9f1b-a9b27d6ac5f3",
+      "name": "Send Started",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        656
+      ],
+      "webhookId": "yt-tg-started-001",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: $('Parse Input').item.json.topic + ' latest 2025 complete guide', search_depth: 'advanced', max_results: 10, include_answer: true, include_raw_content: false }) }}",
+        "options": {}
+      },
+      "id": "555054d0-a30c-4da0-9a5c-7baff8f87033",
+      "name": "Tavily Long",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -672,
+        192
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fl1",
+              "name": "results",
+              "value": "=[]",
+              "type": "array"
+            },
+            {
+              "id": "fl2",
+              "name": "answer",
+              "value": "=No data available",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f7f3ffc4-5ced-428d-a0f4-760eb9b7ce55",
+      "name": "Fallback Tavily Long",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "q",
+              "value": "={{ $('Parse Input').item.json.topic }}"
+            },
+            {
+              "name": "type",
+              "value": "video"
+            },
+            {
+              "name": "maxResults",
+              "value": "8"
+            },
+            {
+              "name": "order",
+              "value": "relevance"
+            },
+            {
+              "name": "key",
+              "value": "your-key"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b19529ce-6fe9-4485-adfd-17ea6e19195e",
+      "name": "YouTube Long",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -672,
+        656
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fyl1",
+              "name": "items",
+              "value": "=[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0581db43-b4b2-4b45-a434-62894afbe88d",
+      "name": "Fallback YouTube Long",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://hn.algolia.com/api/v1/search?query=' + encodeURIComponent($('Parse Input').item.json.topic) + '&tags=story&hitsPerPage=8' }}",
+        "options": {}
+      },
+      "id": "9352f612-2ad9-416a-9ed9-d77ca181065c",
+      "name": "HackerNews Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -672,
+        896
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fhn1",
+              "name": "hits",
+              "value": "=[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "685891a6-7fa0-432e-b65c-ed7c4a3860a9",
+      "name": "Fallback HN",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fdt1",
+              "name": "articles",
+              "value": "=[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "71b0aa06-9ab9-45bb-beab-6f84d81371a6",
+      "name": "Fallback DevTo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "50040db9-e37f-4ff7-8e3f-256a58a88bcd",
+      "name": "Merge Long Research",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -112,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allData = $input.all();\nconst topic = $('Parse Input').item.json.topic;\nconst chatId = $('Parse Input').item.json.chatId;\n\nlet webSources = []; let youtubeSources = []; let hnSources = []; let blogSources = [];\nlet tavilyAnswer = '';\n\nfor (const item of allData) {\n  const d = item.json;\n  if (d.answer && d.answer.length > 10) tavilyAnswer = d.answer;\n\n  // Tavily web\n  if (d.results && Array.isArray(d.results)) {\n    for (const r of d.results) {\n      webSources.push({\n        type: 'WEB',\n        title: (r.title||'').substring(0,100),\n        url: r.url||'',\n        content: (r.content||r.snippet||'').substring(0,500),\n        score: r.score||0\n      });\n    }\n  }\n\n  // YouTube\n  if (d.items && Array.isArray(d.items)) {\n    for (const v of d.items) {\n      youtubeSources.push({\n        title: (v.snippet?.title||'').substring(0,100),\n        channel: v.snippet?.channelTitle||'Unknown',\n        description: (v.snippet?.description||'').substring(0,400),\n        videoId: v.id?.videoId||'',\n        publishedAt: (v.snippet?.publishedAt||'').substring(0,10)\n      });\n    }\n  }\n\n  // HackerNews\n  if (d.hits && Array.isArray(d.hits)) {\n    for (const h of d.hits) {\n      if (h.url) hnSources.push({\n        type: 'ARTICLE',\n        title: (h.title||'').substring(0,100),\n        url: h.url,\n        content: (h.story_text||h._highlightResult?.title?.value||'Community discussion thread').substring(0,300),\n        points: h.points||0\n      });\n    }\n  }\n\n  // Dev.to\n  if (Array.isArray(d)) {\n    for (const a of d) {\n      blogSources.push({\n        type: 'BLOG',\n        title: (a.title||'').substring(0,100),\n        url: a.url||'',\n        content: (a.description||a.body_markdown||'').substring(0,400),\n        reactions: a.public_reactions_count||0\n      });\n    }\n  }\n}\n\n// Deduplicate web\nconst seenUrls = new Set();\nwebSources = webSources.filter(s => { if (!s.url||seenUrls.has(s.url)) return false; seenUrls.add(s.url); return true; });\n\n// Sort by score\nwebSources.sort((a,b) => (b.score||0)-(a.score||0));\nhnSources.sort((a,b) => (b.points||0)-(a.points||0));\nblogSources.sort((a,b) => (b.reactions||0)-(a.reactions||0));\n\n// Best source = highest scored web result\nconst bestSource = webSources[0] || null;\n\n// Build compact AI context (tokens limited)\nconst aiContext = [\n  tavilyAnswer ? 'RESEARCH SUMMARY: ' + tavilyAnswer : '',\n  webSources.slice(0,5).map(s=>`[WEB] ${s.title}\\nURL: ${s.url}\\n${s.content.substring(0,200)}`).join('\\n'),\n  hnSources.slice(0,3).map(s=>`[ARTICLE] ${s.title}\\nURL: ${s.url}\\n${s.content.substring(0,150)}`).join('\\n'),\n  blogSources.slice(0,3).map(s=>`[BLOG] ${s.title}\\nURL: ${s.url}\\n${s.content.substring(0,150)}`).join('\\n')\n].filter(Boolean).join('\\n\\n');\n\nconst ytContext = youtubeSources.slice(0,5).map(v=>`TITLE: ${v.title}\\nCHANNEL: ${v.channel}\\nDESCRIPTION: ${v.description}\\nLINK: https://youtube.com/watch?v=${v.videoId}`).join('\\n---\\n');\n\nreturn [{ json: { topic, chatId, tavilyAnswer, bestSource, webSources: webSources.slice(0,8), youtubeSources: youtubeSources.slice(0,6), hnSources: hnSources.slice(0,5), blogSources: blogSources.slice(0,5), aiContext, ytContext } }];"
+      },
+      "id": "bed889ef-1493-40e1-bad0-ad9a427cf718",
+      "name": "Compress Long Research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "folderId": "default",
+        "title": "={{ '[RESEARCH] ' + $('Parse Input').item.json.topic + ' — ' + $now.toFormat('yyyy-MM-dd') }}"
+      },
+      "id": "b7bb2640-a926-4dbc-aa86-49be51ddb0a8",
+      "name": "Create Doc Long",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://docs.googleapis.com/v1/documents/{{ $('Create Doc Long').item.json.id }}:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDocsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ requests: $('Format Research Doc').item.json.batchRequests }) }}",
+        "options": {}
+      },
+      "id": "20afb6f4-99b7-4102-9f63-ea696ee40a54",
+      "name": "Update Doc Long",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1376,
+        144
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "pf1",
+              "name": "topic",
+              "value": "={{ $('Parse Input').item.json.topic }}",
+              "type": "string"
+            },
+            {
+              "id": "pf2",
+              "name": "chatId",
+              "value": "={{ $('Parse Input').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "pf3",
+              "name": "googleDocId",
+              "value": "={{ $('Create Doc Long').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "pf4",
+              "name": "totalSources",
+              "value": "={{ $('Format Research Doc').item.json.totalSources }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1c68993-cd36-4bbe-b38b-6e250b08c80d",
+      "name": "Prepare Notion Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "3225c973-c6f9-809e-8794-ef0f4243a251",
+          "mode": "list",
+          "cachedResultName": "YouTube Videos",
+          "cachedResultUrl": "https://www.notion.so/3225c973c6f9809e8794ef0f4243a251"
+        },
+        "title": "={{ $json.topic }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Status|status",
+              "statusValue": "Ready for Review"
+            },
+            {
+              "key": "Script URL|url",
+              "urlValue": "={{ 'https://docs.google.com/document/d/' + $json.googleDocId }}"
+            }
+          ]
+        },
+        "blockUi": {
+          "blockValues": [
+            {
+              "textContent": "={{ $('Deep Research Analysis').item.json.text.substring(0, 1800) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "33ca0cde-ace2-42c6-962e-1a5afa6d245e",
+      "name": "Add to Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1824,
+        224
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Input').item.json.chatId }}",
+        "text": "=✅ <b>Deep Research Complete!</b>\n\n📌 <b>Topic:</b> {{ $('Parse Input').item.json.topic }}\n📊 <b>Total sources analyzed:</b> {{ $('Prepare Notion Data').item.json.totalSources }}\n\n📄 <b>Google Doc:</b>\nhttps://docs.google.com/document/d/{{ $('Prepare Notion Data').item.json.googleDocId }}\n\n⬛ <b>Notion:</b>\n{{ $('Add to Notion').item.json.url }}\n\n<b>Your research document includes:</b>\n  • Quick Overview\n  • Key Facts &amp; Data\n  • Key Research Insights\n  • Controversies or Criticism\n  • Important Trends &amp; Patterns\n  • Video Content Angles (4-5 ideas)\n  • Detailed Source Analysis (with clickable links)\n  • Complete References (all sources with clickable links)\n\n📚 Ready for content creation!",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "fecf8baa-9840-4280-a8d5-1ffabf4a4f47",
+      "name": "Telegram Long Done",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        336
+      ],
+      "webhookId": "yt-tg-long-done"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Input').isExecuted ? $('Parse Input').item.json.chatId : '' }}",
+        "text": "=❌ <b>Something went wrong</b>\n\nError: {{ $json.error?.message || $json.message || 'Unknown error' }}\n\nTry again:\n  <code>short your topic</code>\n  <code>long your topic</code>",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "d9682126-a96a-4d6b-9f58-37bed8745847",
+      "name": "Send Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        48
+      ],
+      "webhookId": "yt-tg-error"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        400,
+        304
+      ],
+      "id": "94a1f857-f293-44d5-b1b4-e41bfebcd0cb",
+      "name": "Google Gemini Chat Model"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI Research Analyst for YouTube creators.\n\nYour task is to analyze research sources and generate structured research notes that help a creator understand the topic deeply and explore video ideas.\n\nThis is for RESEARCH AGGREGATION, not for generating a script or writing an article.\n\n# TOPIC\n\n{{ $json.topic }}\n\n# SOURCES PROVIDED\n\nWeb Research Data:\n{{ $json.aiContext }}\n\nYouTube Videos Context:\n{{ $json.ytContext }}\n\n# IMPORTANT RULES\n\n## DO NOT GENERATE A REPORT OR SCRIPT\n\nDo NOT write a YouTube script, academic report, or essay. Instead produce structured research notes.\n\n## ANALYZE SOURCES (DO NOT COPY)\n\nFor every source:\n• analyze the information\n• extract only the most important insights\n• avoid copying text directly\n• avoid rewriting the entire article\n\nFocus on extracting:\n• key insights\n• unique information\n• statistics or data\n• expert opinions\n• controversies\n• trends\n\n## AVOID GENERIC AI FILLER LANGUAGE\n\nDo NOT use phrases like:\n• \"significant development\"\n• \"paradigm shift\"\n• \"in today's rapidly evolving world\"\n\nFocus on clear and useful insights.\n\n## DEDUPLICATE INFORMATION\n\nIf multiple sources repeat the same information:\n• merge the insight into one point\n• note that multiple sources confirm this\n\n# OUTPUT STRUCTURE\n\nFollow this structure exactly:\n\nQUICK SUMMARY:\n[Write 2-3 short paragraphs explaining: what the topic is, why it matters right now, what is currently happening]\n\nKEY FACTS & DATA:\n• [statistic or fact 1]\n• [statistic or fact 2]\n• [timeline or announcement]\n[List important factual information: statistics, numbers, timelines, announcements, launches]\n\nKEY INSIGHTS FROM SOURCES:\n• [insight 1 - combine insights across sources]\n• [insight 2]\n• [insight 3]\n[Use bullet points. Combine insights across sources.]\n\nCONTROVERSIES OR CRITICISM:\n• [debate or concern 1]\n• [debate or concern 2]\n[Highlight debates, concerns, or risks]\n\nIMPORTANT TRENDS:\n• [trend 1]\n• [trend 2]\n[Identify patterns appearing across sources]\n\nVIDEO CONTENT ANGLES:\n\nAngle 1: [Title]\n[Short explanation - curiosity-driven and engaging]\n\nAngle 2: [Title]\n[Short explanation]\n\nAngle 3: [Title]\n[Short explanation]\n\nAngle 4: [Title]\n[Short explanation]\n\n[Suggest 4-5 interesting YouTube video ideas]\n\n# FINAL INSTRUCTIONS\n\n• Avoid fluff and repetition\n• Focus on useful research insights\n• Combine insights across sources when relevant\n• Keep output focused on high-value research information\n• Write in clear, direct language"
+      },
+      "id": "e2c99c62-4084-437d-aaf7-bb66cff4401b",
+      "name": "Deep Research Analysis",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const topic = $('Parse Input').item.json.topic;\nconst researchAnalysis = $('Deep Research Analysis').item.json.text || '';\nconst sourceAnalysis = $('Source Deep Analysis').item.json.text || '';\nconst webSources = $('Compress Long Research').item.json.webSources || [];\nconst youtubeSources = $('Compress Long Research').item.json.youtubeSources || [];\nconst hnSources = $('Compress Long Research').item.json.hnSources || [];\nconst blogSources = $('Compress Long Research').item.json.blogSources || [];\nconst date = new Date().toISOString().split('T')[0];\n\nconst parseSection = (text, label) => {\n  const regex = new RegExp(label + '[:\\\\s]*([\\\\s\\\\S]*?)(?=\\\\n[A-Z][A-Z &]+:|$)', 'i');\n  const match = text.match(regex);\n  return match ? match[1].trim() : 'Not available.';\n};\n\nconst quickSummary   = parseSection(researchAnalysis, 'QUICK SUMMARY');\nconst keyFacts       = parseSection(researchAnalysis, 'KEY FACTS & DATA');\nconst keyInsights    = parseSection(researchAnalysis, 'KEY INSIGHTS FROM SOURCES');\nconst controversies  = parseSection(researchAnalysis, 'CONTROVERSIES OR CRITICISM');\nconst trends         = parseSection(researchAnalysis, 'IMPORTANT TRENDS');\nconst videoAngles    = parseSection(researchAnalysis, 'VIDEO CONTENT ANGLES');\nconst totalSources   = webSources.length + youtubeSources.length + hnSources.length + blogSources.length;\n\n// ── Google Docs batchUpdate request builder ──────────────────────────────────\nconst requests = [];\nlet curIdx = 1;\n\nfunction addText(text) {\n  if (!text) return;\n  requests.push({ insertText: { location: { index: curIdx }, text } });\n  curIdx += text.length;\n}\n\nfunction addLink(url, displayText) {\n  if (!url) return;\n  const linkText = displayText || url;\n  const startIdx = curIdx;\n  requests.push({ insertText: { location: { index: curIdx }, text: linkText + '\\n' } });\n  const endIdx = curIdx + linkText.length; // exclusive end (excludes \\n)\n  curIdx += linkText.length + 1;\n  requests.push({\n    updateTextStyle: {\n      range: { startIndex: startIdx, endIndex: endIdx },\n      textStyle: {\n        link: { url },\n        foregroundColor: { color: { rgbColor: { red: 0.0627, green: 0.4627, blue: 0.9255 } } },\n        underline: true\n      },\n      fields: 'link,foregroundColor,underline'\n    }\n  });\n}\n\nfunction addH1(text) {\n  const startIdx = curIdx;\n  requests.push({ insertText: { location: { index: curIdx }, text: text + '\\n' } });\n  const endIdx = curIdx + text.length + 1;\n  curIdx += text.length + 1;\n  requests.push({\n    updateParagraphStyle: {\n      range: { startIndex: startIdx, endIndex: endIdx },\n      paragraphStyle: { namedStyleType: 'HEADING_1' },\n      fields: 'namedStyleType'\n    }\n  });\n}\n\nfunction addH2(text) {\n  const startIdx = curIdx;\n  requests.push({ insertText: { location: { index: curIdx }, text: text + '\\n' } });\n  const endIdx = curIdx + text.length + 1;\n  curIdx += text.length + 1;\n  requests.push({\n    updateParagraphStyle: {\n      range: { startIndex: startIdx, endIndex: endIdx },\n      paragraphStyle: { namedStyleType: 'HEADING_2' },\n      fields: 'namedStyleType'\n    }\n  });\n}\n\n// ── Build document ────────────────────────────────────────────────────────────\naddH1('DEEP RESEARCH DOCUMENT');\naddText('Topic: ' + topic + '\\n');\naddText('Generated: ' + date + '\\n');\naddText('Total Sources Analyzed: ' + totalSources + '\\n\\n');\n\naddH1('QUICK SUMMARY');\naddText(quickSummary + '\\n\\n');\n\naddH1('KEY FACTS & DATA');\naddText(keyFacts + '\\n\\n');\n\naddH1('KEY INSIGHTS FROM SOURCES');\naddText(keyInsights + '\\n\\n');\n\naddH1('CONTROVERSIES OR CRITICISM');\naddText(controversies + '\\n\\n');\n\naddH1('IMPORTANT TRENDS');\naddText(trends + '\\n\\n');\n\naddH1('VIDEO CONTENT ANGLES');\naddText(videoAngles + '\\n\\n');\n\naddH1('DETAILED SOURCE ANALYSIS');\naddText(sourceAnalysis + '\\n\\n');\n\naddH1('BEST SOURCES FOR DEEPER EXPLORATION');\nwebSources.slice(0, 3).forEach((s, i) => {\n  addText('\\n' + (i + 1) + '. ' + s.title + '\\n');\n  addLink(s.url);\n  addText('Date: ' + (s.publishedAt || 'Not available') + '\\n');\n  addText('Key Insights:\\n' + s.content.substring(0, 300) + '...\\n\\n');\n});\nyoutubeSources.slice(0, 2).forEach((s, i) => {\n  const ytUrl = 'https://youtube.com/watch?v=' + s.videoId;\n  addText('\\n' + (Math.min(webSources.length, 3) + i + 1) + '. ' + s.title + '\\n');\n  addLink(ytUrl);\n  addText('Channel: ' + s.channel + ' | Date: ' + (s.publishedAt || 'Unknown') + '\\n');\n  addText('Description:\\n' + s.description.substring(0, 250) + '...\\n\\n');\n});\n\naddH1('ALL REFERENCES');\n\nif (webSources.length > 0) {\n  addH2('WEB ARTICLES');\n  webSources.forEach((s, i) => {\n    addText((i + 1) + '. ' + s.title + '\\n');\n    addLink(s.url);\n  });\n  addText('\\n');\n}\n\nif (youtubeSources.length > 0) {\n  addH2('YOUTUBE VIDEOS');\n  youtubeSources.forEach((s, i) => {\n    const ytUrl = 'https://youtube.com/watch?v=' + s.videoId;\n    addText((i + 1) + '. ' + s.title + ' (' + s.channel + ')\\n');\n    addLink(ytUrl);\n  });\n  addText('\\n');\n}\n\nif (hnSources.length > 0) {\n  addH2('COMMUNITY ARTICLES');\n  hnSources.forEach((s, i) => {\n    addText((i + 1) + '. ' + s.title + '\\n');\n    addLink(s.url);\n  });\n  addText('\\n');\n}\n\nif (blogSources.length > 0) {\n  addH2('BLOG POSTS');\n  blogSources.forEach((s, i) => {\n    addText((i + 1) + '. ' + s.title + '\\n');\n    addLink(s.url);\n  });\n}\n\naddText('\\n\\n─── END OF RESEARCH DOCUMENT ───\\n');\n\nreturn [{ json: {\n  topic,\n  batchRequests: requests,\n  chatId: $('Parse Input').item.json.chatId,\n  totalSources\n} }];"
+      },
+      "id": "4b808558-74be-40d9-aee8-4c82d237b359",
+      "name": "Format Research Doc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Topic: {{ $('Parse Input').item.json.topic }}\n\nYou have access to detailed source content. Your task is to analyze EACH source individually and extract the most valuable insights related to the topic.\n\nFor each source provided, extract:\n• The main argument or thesis\n• Key facts, statistics, or data points\n• Unique perspectives or insights\n• Practical examples or case studies\n• Expert quotes or opinions\n• What makes this source valuable\n\nWeb Sources:\n{{ $('Compress Long Research').item.json.aiContext }}\n\nYouTube Sources:\n{{ $('Compress Long Research').item.json.ytContext }}\n\n# RULES\n\n• DO NOT copy entire paragraphs from sources\n• Extract ONLY the most important insights\n• Focus on what is unique or valuable in each source\n• Avoid generic descriptions\n• Be specific with facts, data, and examples\n\n# OUTPUT FORMAT\n\nFor each major source, provide:\n\nSOURCE: [Title]\nURL: [source url here]\nTYPE: [Web/YouTube/Article/Blog]\n\nKEY INSIGHTS:\n• [Specific insight 1 with facts/data]\n• [Specific insight 2 with facts/data]\n• [Specific insight 3 with facts/data]\n\nUNIQUE VALUE:\n[1-2 sentences explaining what makes this source particularly valuable for understanding the topic]\n\n---\n\n[Repeat for each major source]\n\nProvide analysis for the 8-10 most valuable sources."
+      },
+      "id": "63ac49ec-492d-40b0-bd41-2ea839c1d729",
+      "name": "Source Deep Analysis",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        576,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://medium.com/feed/tag/' + $('Parse Input').item.json.topic.toLowerCase().replace(/ /g, '-')) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-youtube-bot/1.0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "609a33e4-40d8-42bb-aa51-cae2a1b63b36",
+      "name": "Articles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -672,
+        1184
+      ],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Input": {
+      "main": [
+        [
+          {
+            "node": "Send Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Started": {
+      "main": [
+        [
+          {
+            "node": "YouTube Long",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tavily Long",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HackerNews Research",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Articles",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tavily Long": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback Tavily Long",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Tavily Long": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube Long": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Fallback YouTube Long",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback YouTube Long": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HackerNews Research": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 2
+          }
+        ],
+        [
+          {
+            "node": "Fallback HN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback HN": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Fallback DevTo": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge Long Research": {
+      "main": [
+        [
+          {
+            "node": "Compress Long Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compress Long Research": {
+      "main": [
+        [
+          {
+            "node": "Deep Research Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Doc Long": {
+      "main": [
+        [
+          {
+            "node": "Update Doc Long",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Doc Long": {
+      "main": [
+        [
+          {
+            "node": "Prepare Notion Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Notion Data": {
+      "main": [
+        [
+          {
+            "node": "Add to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Notion": {
+      "main": [
+        [
+          {
+            "node": "Telegram Long Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Deep Research Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Source Deep Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Research Doc": {
+      "main": [
+        [
+          {
+            "node": "Create Doc Long",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source Deep Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Research Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deep Research Analysis": {
+      "main": [
+        [
+          {
+            "node": "Source Deep Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Articles": {
+      "main": [
+        [
+          {
+            "node": "Merge Long Research",
+            "type": "main",
+            "index": 3
+          }
+        ],
+        [
+          {
+            "node": "Fallback DevTo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c0bb2413-47fb-4011-bbeb-58b8d943903e",
+  "meta": {
+    "instanceId": "1841bf2981fe9616fb8381107857099c2c4381f0f4f2ceaec11bd893781c492a"
+  },
+  "id": "n5K3GbBKs5pA252b",
+  "tags": []
+}
