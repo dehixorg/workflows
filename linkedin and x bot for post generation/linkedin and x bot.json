@@ -1,0 +1,1037 @@
+{
+  "name": "linkedin and x bot",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "li-fail-msg",
+              "name": "message",
+              "value": "=❌ LinkedIn post FAILED!\n📌 Topic: {{ $('Content Strategist AI').item.json.output.topic }}\n⚠️ Post was NOT sent. Check LinkedIn credentials or API limits.\n🕐 {{ $now.toFormat('dd LLL yyyy, hh:mm a') }}",
+              "type": "string"
+            },
+            {
+              "id": "li-fail-chat",
+              "name": "chat_id",
+              "value": "={{ $('Telegram Topic Input').item.json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7f6e0fdb-53b9-49a4-8942-d44c25739d97",
+      "name": "Prepare LinkedIn Failure",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3904,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tw-prep-tweet",
+              "name": "tweet_text",
+              "value": "={{ $('Content Strategist AI').item.json.output.twitter.main_tweet }}\n\n{{ $('Content Strategist AI').item.json.output.twitter.hashtags.join(' ') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7fc7c110-6826-4da6-bbbd-a80ad96b645b",
+      "name": "Prepare Tweet with Image",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.tweet_text }}",
+        "additionalFields": {
+          "attachments": "data"
+        }
+      },
+      "id": "90ae2150-388f-47a0-b4e5-2d7096694aeb",
+      "name": "Post Tweet with Image",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        2432
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "tw-check-1",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "604ade5b-ce43-41ca-a340-44fd588fe944",
+      "name": "Check Twitter Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1328,
+        2208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tw-fail-msg",
+              "name": "message",
+              "value": "=❌ X/Twitter post FAILED!\n📌 Topic: {{ $('Content Strategist AI').item.json.output.topic }}\n⚠️ Tweet was NOT sent. Check X/Twitter credentials or API access.\n🕐 {{ $now.toFormat('dd LLL yyyy, hh:mm a') }}",
+              "type": "string"
+            },
+            {
+              "id": "tw-fail-chat",
+              "name": "chat_id",
+              "value": "={{ $('Telegram Topic Input').item.json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d7692cd6-b1fc-4af5-8d23-d8e5acb5bbad",
+      "name": "Prepare Twitter Failure",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1712,
+        2320
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1552,
+        2480
+      ],
+      "id": "f08d14e0-22bd-4a3e-99bc-72d971dd4a25",
+      "name": "Loop Thread Tweets"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.tweet_text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        2528
+      ],
+      "id": "dbba201a-6604-4996-9719-bbd7c4afb2fe",
+      "name": "Post Thread Tweet",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "li-ok-msg",
+              "name": "message",
+              "value": "=✅ LinkedIn post published!\n📌 Topic: {{ $('Content Strategist AI').item.json.output.topic }}\n📝 Published: {{ $now.toFormat('dd LLL yyyy, hh:mm a') }}",
+              "type": "string"
+            },
+            {
+              "id": "li-ok-chat",
+              "name": "chat_id",
+              "value": "={{ $('Telegram Topic Input').item.json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "36c84c9c-357b-47c4-8a09-769db8a6f99a",
+      "name": "Prepare LinkedIn Confirmation1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3824,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tw-ok-msg",
+              "name": "message",
+              "value": "=✅ X/Twitter post published!\n📌 Topic: {{ $('Content Strategist AI').item.json.output.topic }}\n🐦 Main tweet posted with image\n⏰ Best time: {{ $('Content Strategist AI').item.json.output.twitter.best_time_to_post }}\n🕐 {{ $now.toFormat('dd LLL yyyy, hh:mm a') }}",
+              "type": "string"
+            },
+            {
+              "id": "tw-ok-chat",
+              "name": "chat_id",
+              "value": "={{ $('Telegram Topic Input').item.json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8c5bfba9-61db-44fb-ac6a-01a8a182e6b3",
+      "name": "Prepare Twitter Confirmation1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1712,
+        2112
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Topic: {{ $('Telegram Topic Input').item.json.message.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a social media content strategist. Return ONLY a valid JSON object (no markdown, no backticks) with these fields: topic, image_prompt, linkedin (post, hashtags, cta, best_time_to_post, estimated_reach), twitter (main_tweet, thread array of 5 tweets, hashtags, best_time_to_post), analysis (virality_score, target_audience, content_angle, unique_angle, tone_used)"
+        }
+      },
+      "id": "b970f4f6-d0f4-4afe-aedd-15370a9bd724",
+      "name": "Content Strategist AI",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -416,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "412c62ad-44a4-47a5-b6af-0f46fcf1d145",
+      "name": "Gemini for content",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "25fe6d9b-a988-4071-a4b1-1d58a1214fe1",
+      "name": "Telegram Topic Input",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1264,
+        2016
+      ],
+      "webhookId": "34871548-a05b-48c0-9236-c4cc34a82349"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"topic\": { \"type\": \"string\" },\n\t\t\"image_prompt\": { \"type\": \"string\" },\n\t\t\"linkedin\": { \"type\": \"object\", \"properties\": { \"post\": { \"type\": \"string\" }, \"hashtags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"cta\": { \"type\": \"string\" }, \"best_time_to_post\": { \"type\": \"string\" }, \"estimated_reach\": { \"type\": \"string\" } } },\n\t\t\"twitter\": { \"type\": \"object\", \"properties\": { \"main_tweet\": { \"type\": \"string\" }, \"thread\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"hashtags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"best_time_to_post\": { \"type\": \"string\" } } },\n\t\t\"analysis\": { \"type\": \"object\", \"properties\": { \"virality_score\": { \"type\": \"number\" }, \"target_audience\": { \"type\": \"string\" }, \"content_angle\": { \"type\": \"string\" }, \"unique_angle\": { \"type\": \"string\" }, \"suggested_variations\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"tone_used\": { \"type\": \"string\" } } }\n\t}\n}"
+      },
+      "id": "3ccd95df-9611-41db-b8d7-42f4e4747585",
+      "name": "JSON Structure Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -256,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "image/png"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "inputs",
+              "value": "={{ $json.output.image_prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "7cca1a89-8166-4fa4-aedf-fcb32e22a076",
+      "name": "Generate Image with Hugging Face",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        1872
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "id": "36934ea3-4f01-4287-8c4a-e13136053a75",
+      "name": "Send LinkedIn Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4336,
+        1440
+      ],
+      "webhookId": "90010218-3bee-42ec-88bc-736e2287572e"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "id": "e0740ac0-8a83-4d56-b465-b212b7c3ef1d",
+      "name": "Send Twitter Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2096,
+        2160
+      ],
+      "webhookId": "046530dc-2e38-4c1b-a227-f801afcdb29c"
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/v2/userinfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "linkedin_body",
+              "value": "={{ $json.linkedin_body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        512
+      ],
+      "id": "6cb8a761-ee1a-440d-816c-eb281256fe99",
+      "name": "getid"
+    },
+    {
+      "parameters": {
+        "person": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "text": "={{ $('Content Strategist AI').item.json.output.linkedin.post }}\n\n{{ $('Content Strategist AI').item.json.output.linkedin.hashtags.join(' ') }}\n\n{{ $('Content Strategist AI').item.json.output.linkedin.cta }}",
+        "shareMediaCategory": "IMAGE",
+        "additionalFields": {}
+      },
+      "id": "cbeed994-fa88-470a-bc4a-67e329663c90",
+      "name": "LinkedIn Native Post (Primary)",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        944,
+        1408
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "li-native-check-1",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b0ced75c-cc6d-4144-ab4c-a5c27fe64665",
+      "name": "Check Native LinkedIn Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1280,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/assets?action=registerUpload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n \"registerUploadRequest\": {\n   \"recipes\": [\"urn:li:digitalmediaRecipe:feedshare-image\"],\n   \"owner\": \"urn:li:person:g5yec9SDhg\",\n   \"serviceRelationships\": [{ \"relationshipType\": \"OWNER\", \"identifier\": \"urn:li:userGeneratedContent\" }]\n }\n}",
+        "options": {}
+      },
+      "id": "871b9ba5-d677-425b-8fcc-3b1a20a5296d",
+      "name": "Register LinkedIn Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1904,
+        1776
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Z4tcdFi7ru2BPkyV",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Re-attach the image binary from the Generate Image node\nconst imageItem = $('Generate Image with Hugging Face').first();\nconst item = items[0];\nitem.binary = imageItem.binary;\nreturn [item];"
+      },
+      "id": "c695c41d-cc93-43a1-84cb-12d4d554c9e5",
+      "name": "Re-Attach Image Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        1504
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "image/png"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer AQVu0D2iifq_uQsQfyweHPOJAyEgnC9x-ieWNiXNtepptez1slXBJGILeGD8vF73rn4lTjCSqO22MzRCTFBWvMG8kMasOjRtlpLVTvfCC-qXpAOe7FNyyaPmE2oNRKJ8veMYRATbtNypYdI4Dk2wlfR6WSjV4018nlH8WwsdJN_v8Qjbanp4Wig7aK70O7Nht1fomlzTEjZhic-tVllx9hUkrxXExFM2mXC6sg8ZD7jPF3KnTdwxNSmnGPAkCKX8pB1D-4yS7lOX8KRCD8Xul6acRAYRbj7zI67bIOijpxdHk2h5naPvYHTu0nKxeqCHxytrIdYEo8KltZsZWUww57_4kcHYpA"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "463164ac-fdb5-4663-bd60-f48ba7749948",
+      "name": "Upload Image Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2624,
+        1552
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer AQVu0D2iifq_uQsQfyweHPOJAyEgnC9x-ieWNiXNtepptez1slXBJGILeGD8vF73rn4lTjCSqO22MzRCTFBWvMG8kMasOjRtlpLVTvfCC-qXpAOe7FNyyaPmE2oNRKJ8veMYRATbtNypYdI4Dk2wlfR6WSjV4018nlH8WwsdJN_v8Qjbanp4Wig7aK70O7Nht1fomlzTEjZhic-tVllx9hUkrxXExFM2mXC6sg8ZD7jPF3KnTdwxNSmnGPAkCKX8pB1D-4yS7lOX8KRCD8Xul6acRAYRbj7zI67bIOijpxdHk2h5naPvYHTu0nKxeqCHxytrIdYEo8KltZsZWUww57_4kcHYpA"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({\n  \"author\": \"urn:li:person:g5yec9SDhg\",\n  \"lifecycleState\": \"PUBLISHED\",\n  \"specificContent\": {\n    \"com.linkedin.ugc.ShareContent\": {\n      \"shareCommentary\": {\n        \"text\": $('Content Strategist AI').item.json.output.linkedin.post + \"\\n\\n\" + \n                $('Content Strategist AI').item.json.output.linkedin.hashtags.join(' ') + \"\\n\\n\" + \n                $('Content Strategist AI').item.json.output.linkedin.cta\n      },\n      \"shareMediaCategory\": \"IMAGE\",\n      \"media\": [{\n        \"status\": \"READY\",\n        \"media\": $('Register LinkedIn Upload').item.json.value.asset,\n        \"title\": { \"text\": $('Content Strategist AI').item.json.output.topic }\n      }]\n    }\n  },\n  \"visibility\": {\n    \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\"\n  }\n})}}",
+        "options": {}
+      },
+      "id": "782858e2-27c2-4129-a16f-42c65497831d",
+      "name": "Create LinkedIn Post with Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3232,
+        1568
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "li-http-check-1",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7d5ac324-ee56-4631-8a3c-1ef2c8bafad8",
+      "name": "Check HTTP LinkedIn Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3568,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 📩 Telegram Trigger\n\nListens for messages. Your message text = content topic.\n\n🔑 Get Bot Token\n1. Telegram → @BotFather → /newbot\n2. Copy token: 123456:ABCdef...\n\n\nn8n Setup:\nCredentials → New → Telegram → paste token\nSave as \"Telegram account\"",
+        "height": 432,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1648,
+        1744
+      ],
+      "id": "2e1a5bc6-8a28-46e2-8066-d57e130befbf",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 Content Strategist AI\n\nTakes your topic → generates all content for LinkedIn + Twitter.\n\n🔑 Get Gemini API Key\n1. https://aistudio.google.com → Get API Key\n2. Key starts with AIza...\n3. n8n → Credentials → Google PaLM → paste key\n   Save as \"Google Gemini(PaLM) Api account\"\n\n",
+        "height": 912,
+        "width": 800
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        1312
+      ],
+      "id": "83bcb237-0781-4474-9432-9327ef99e4c0",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 🎨 Generate Image — Hugging Face\n\nModel: Stable Diffusion XL\nInput: image_prompt from AI node\nOutput: PNG binary → flows to LinkedIn + Twitter\n\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🔑 Get Hugging Face Token\n━━━━━━━━━━━━━━━━━━━━━━━\n1. Go to https://huggingface.co\n2. Click \"Sign Up\" → fill name, email, password\n3. Verify your email → log in\n4. Click your profile picture (top right)\n5. Go to \"Settings\"\n6. Click \"Access Tokens\" from left menu\n7. Click \"New Token\"\n8. Fill in:\n   • Name: anything (e.g. n8n-workflow)\n   • user permission : select all \n9. Click \"Generate Token\"\n10. Copy the token → starts with hf_...\n⚠️ Copy it now — you cannot see it again later\n\n\nWhere to paste:\nNode → Headers → Authorization → Bearer hf_yourtoken\n\n",
+        "height": 576,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        1536
+      ],
+      "id": "60b2d990-4e09-4343-a139-e6321b00a02f",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 🪪 getid — Fetch Person ID\n\nGET https://api.linkedin.com/v2/userinfo\n\nRun once → find \"sub\" in response = your Person ID\n\nPaste it here:\n- Register Upload → \"owner\": \"urn:li:person:YOURID\"\n- Create Post → \"author\": \"urn:li:person:YOURID\"\n\n",
+        "height": 560,
+        "width": 736
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        176
+      ],
+      "id": "6b27a181-11b7-4e9b-af1c-21b475cef26c",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## 1️⃣ LinkedIn Native Post (Primary)\n\nUses n8n built-in LinkedIn OAuth2 node.\n\nn8n Setup:\nCredentials → LinkedIn OAuth2 API\n→ paste Client ID + Client Secret → Connect\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🔑 Get Client ID & Client Secret\n━━━━━━━━━━━━━━━━━━━━━━━\n1. Go to https://linkedin.com/developers/apps\n2. Open your App → go to \"Auth\" tab\n3. You will see:\n   • Client ID → copy it\n   • Client Secret → click \"show\" → copy it\n\n",
+        "height": 368,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1216
+      ],
+      "id": "fa31222a-4cb5-4475-859d-4bc1f76ba4c4",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## 2️⃣ Fallback Step 1 — Register Upload\n\nPOST https://api.linkedin.com/v2/assets?action=registerUpload\n\n━━━━━━━━━━━━━━━━━━━━━━━\n🔐 Header Auth Setup in this node\n━━━━━━━━━━━━━━━━━━━━━━━\n1. Open this node → go to Authentication section\n2. Set \"Authentication\" → Generic Credential Type\n3. Set \"Generic Auth Type\" → Header Auth\n4. In \"Credential for Header Auth\" →\n   select \"Header Auth account\"\n   (if not created yet → click New):\n   • Name:  Authorization\n   • Value: Bearer <your LinkedIn token>\n   • Save as \"Header Auth account\"\n\n━━━━━━━━━━━━━━━━━━━━━━━\n⚠️ Replace Person ID in JSON body\n━━━━━━━━━━━━━━━━━━━━━━━\nFind this line in the JSON body:\n\"owner\": \"urn:li:person:g5yec9SDhg\"\nReplace g5yec9SDhg with your actual Person ID\n(get it from the getid node → \"sub\" field)\n\n",
+        "height": 656,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        1296
+      ],
+      "id": "668888c4-3dbe-49ed-890b-fb2510e05f6c",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## 3️⃣ Fallback Step 2 — Upload Image\n\nPUT <uploadUrl from Register step>\n\nCredential: Header Auth account\n\n⚠️ Token is hardcoded in this node:\nHeaders → Authorization → Bearer AQV...\nReplace with your token. Update every 60 days.\n\nBody: binary image (data field), Content-Type: image/png",
+        "height": 416,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2304,
+        1280
+      ],
+      "id": "14e19812-1414-4826-8bcd-ba0901d4e42b",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## 4️⃣ Fallback Step 3 — Create Post\n\nPOST https://api.linkedin.com/v2/ugcPosts\n\nCredential: Header Auth account\n\n⚠️ Replace both hardcoded values:\n1. Headers → Authorization → Bearer <your_token>\n2. JSON body → \"author\": \"urn:li:person:YOURID\"\n\n",
+        "height": 416,
+        "width": 512
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        1328
+      ],
+      "id": "9500f481-79a8-4371-8b08-20170e4eaad9",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "# X Posting\n\n\n\n🔑 Get Twitter API Access\n1. https://developer.twitter.com → Create App\n2. Keys & Tokens tab → copy:\n   Client ID + Client Secret (OAuth2)\n3. n8n → Credentials → Twitter OAuth2\n   → paste → Connect\n   Save as \"X account\"\n\n",
+        "height": 464,
+        "width": 624
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        608,
+        2176
+      ],
+      "id": "3bc6f943-4903-4c11-b1ee-13ff66bf9089",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## 🔑 How to Get LinkedIn Access Token\n\n━━━━━━━━━━━━━━━━━━━━━━━\nSTEP 1 — Create LinkedIn App\n━━━━━━━━━━━━━━━━━━━━━━━\n1. Go to https://linkedin.com/developers/apps\n2. Click \"Create App\"\n3. Fill in App Name, LinkedIn Page, Logo\n4. Click \"Create App\"\n\n━━━━━━━━━━━━━━━━━━━━━━━\nSTEP 2 — Add Scopes\n━━━━━━━━━━━━━━━━━━━━━━━\n1. Go to \"Products\" tab\n2. Request access for:\n   • Share on LinkedIn\n   • Sign In with LinkedIn using OpenID\n3. Wait for approval (usually instant)\n4. Go to \"Auth\" tab → confirm these scopes appear:\n   w_member_social, r_liteprofile, openid, profile, email\n\n━━━━━━━━━━━━━━━━━━━━━━━\nSTEP 3 — Get Your Token\n━━━━━━━━━━━━━━━━━━━━━━━\n1. Go to https://www.linkedin.com/developers/tools/oauth/token-generator\n2. Select your App from dropdown\n3. Tick all scopes: openid, profile, email,\n   w_member_social, r_liteprofile\n4. Click \"Request access token\"\n5. Log in with your LinkedIn account if asked\n6. Copy the token shown — starts with AQV...\n\n⚠️ Token lasts 60 days\n⚠️ Save it somewhere safe — you cannot see it again\n⚠️ After 60 days repeat Step 3 to get a new token\n\n\n━━━━━━━━━━━━━━━━━━━━━━━\nSTEP 4 — Put Token in n8n\n━━━━━━━━━━━━━━━━━━━━━━━\nHeader Auth credential:\n1. n8n → Credentials → New → \"Header Auth\"\n2. Name:  Authorization\n   Value: Bearer <paste token here>\n3. Save as \"Header Auth account\"\n",
+        "height": 976,
+        "width": 624
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "183649b3-b267-43ed-b8ce-67dc77440996",
+      "name": "Sticky Note9"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Prepare LinkedIn Failure": {
+      "main": [
+        [
+          {
+            "node": "Send LinkedIn Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Tweet with Image": {
+      "main": [
+        [
+          {
+            "node": "Post Tweet with Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Tweet with Image": {
+      "main": [
+        [
+          {
+            "node": "Check Twitter Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Twitter Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Twitter Success": {
+      "main": [
+        [
+          {
+            "node": "Prepare Twitter Confirmation1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Thread Tweets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Twitter Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Twitter Failure": {
+      "main": [
+        [
+          {
+            "node": "Send Twitter Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Thread Tweets": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Post Thread Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Thread Tweet": {
+      "main": [
+        [
+          {
+            "node": "Loop Thread Tweets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LinkedIn Confirmation1": {
+      "main": [
+        [
+          {
+            "node": "Send LinkedIn Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Twitter Confirmation1": {
+      "main": [
+        [
+          {
+            "node": "Send Twitter Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Strategist AI": {
+      "main": [
+        [
+          {
+            "node": "Generate Image with Hugging Face",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini for content": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Content Strategist AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Topic Input": {
+      "main": [
+        [
+          {
+            "node": "Content Strategist AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JSON Structure Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Content Strategist AI",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image with Hugging Face": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Native Post (Primary)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Tweet with Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Native Post (Primary)": {
+      "main": [
+        [
+          {
+            "node": "Check Native LinkedIn Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Register LinkedIn Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Native LinkedIn Success": {
+      "main": [
+        [
+          {
+            "node": "Prepare LinkedIn Confirmation1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Register LinkedIn Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register LinkedIn Upload": {
+      "main": [
+        [
+          {
+            "node": "Re-Attach Image Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-Attach Image Binary": {
+      "main": [
+        [
+          {
+            "node": "Upload Image Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Image Binary": {
+      "main": [
+        [
+          {
+            "node": "Create LinkedIn Post with Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create LinkedIn Post with Image": {
+      "main": [
+        [
+          {
+            "node": "Check HTTP LinkedIn Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare LinkedIn Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check HTTP LinkedIn Success": {
+      "main": [
+        [
+          {
+            "node": "Prepare LinkedIn Confirmation1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare LinkedIn Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "99f226ce-233e-41fb-b8b6-e9261a268079",
+  "meta": {
+    "instanceId": "1841bf2981fe9616fb8381107857099c2c4381f0f4f2ceaec11bd893781c492a"
+  },
+  "id": "uoKlAtTC3p4X9DEO",
+  "tags": []
+}
