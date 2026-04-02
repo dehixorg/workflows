@@ -1,0 +1,2842 @@
+{
+  "name": "SendFlow Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "02efe625-58a3-46ae-863d-edf05038b274",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -18256,
+        23872
+      ],
+      "webhookId": "13f68629-aa0e-4027-97e0-774775ca08f3",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json;\nconst rawText = (msg.message?.text || '').trim();\nconst chatId = msg.message?.chat?.id || '';\nconst text = rawText.toLowerCase();\n\nlet action = 'UNKNOWN';\nlet payload = {};\n\n// /send → AI email writing\nif (text.startsWith('/send ') || text === '/send') {\n  const message = rawText.replace(/^\\/send\\s*/i, '').trim();\n  action = 'SEND_CAMPAIGN';\n  payload = { campaignMessage: message };\n}\n// /status all\nelse if (text === '/status' || text === '/status all') {\n  action = 'CHECK_STATUS';\n  payload = { target: 'all' };\n}\n// /status email@x.com\nelse if (text.startsWith('/status ')) {\n  const emailMatch = rawText.match(/[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/);\n  action = 'CHECK_STATUS';\n  payload = { target: emailMatch ? emailMatch[0] : 'all' };\n}\n// /reset all\nelse if (text === '/reset all') {\n  action = 'RESET_PENDING';\n  payload = { target: 'all' };\n}\n// /reset failed\nelse if (text === '/reset failed') {\n  action = 'RESET_PENDING';\n  payload = { target: 'all_failed' };\n}\n// /reset email@x.com\nelse if (text.startsWith('/reset ')) {\n  const emailMatch = rawText.match(/[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/);\n  action = 'RESET_PENDING';\n  payload = { target: emailMatch ? emailMatch[0] : 'all' };\n}\n// /add - single or multiple emails\nelse if (text.startsWith('/add ')) {\n  const body = rawText.replace(/^\\/add\\s*/i, '').trim();\n  const allEmails = [...body.matchAll(/[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/g)].map(m => m[0]);\n  action = 'ADD_EMAIL';\n  payload = {\n    email: allEmails[0] || '',\n    emails: allEmails\n  };\n}\n// /remove - single or multiple emails\nelse if (text.startsWith('/remove ')) {\n  const body = rawText.replace(/^\\/remove\\s*/i, '').trim();\n  const allEmails = [...body.matchAll(/[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/g)].map(m => m[0]);\n  action = 'REMOVE_EMAIL';\n  payload = {\n    email: allEmails[0] || '',\n    emails: allEmails\n  };\n}\n// /sendto email@x.com: message\nelse if (text.startsWith('/sendto ')) {\n  const emailMatch = rawText.match(/[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/);\n  const msgMatch = rawText.match(/:\\s*(.+)$/s);\n  action = 'SEND_SPECIFIC';\n  payload = {\n    target_email: emailMatch ? emailMatch[0] : '',\n    campaignMessage: msgMatch ? msgMatch[1].trim() : ''\n  };\n}\n// /stats /report /summary\nelse if (text === '/stats' || text === '/report' || text === '/summary') {\n  action = 'GET_STATS';\n  payload = {};\n}\n// /list\nelse if (text === '/list' || text === '/listemails' || text === '/list emails') {\n  action = 'LIST_EMAILS';\n  payload = {};\n}\n// /resendfailed\nelse if (text === '/resendfailed' || text === '/resend failed' || text === '/resend') {\n  action = 'RESEND_FAILED';\n  payload = {};\n}\n// /help\nelse if (text === '/help') {\n  action = 'HELP';\n  payload = {};\n}\nelse {\n  action = 'UNKNOWN';\n  payload = { rawText };\n}\n\nreturn [{ json: { action, chatId, rawText, ...payload } }];"
+      },
+      "id": "db5d14df-c553-4465-87d6-8539b2f872e7",
+      "name": "Smart Command Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -18032,
+        23872
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "SEND_CAMPAIGN",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r1"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Send Campaign"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "CHECK_STATUS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Check Status"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "RESET_PENDING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r3"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reset Pending"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ADD_EMAIL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Add Email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "REMOVE_EMAIL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Remove Email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "SEND_SPECIFIC",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Send Specific"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "GET_STATS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Get Stats"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "LIST_EMAILS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r8"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "List Emails"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "RESEND_FAILED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r9"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Resend Failed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "HELP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r10"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "UNKNOWN",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r11"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Unknown"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "48b98af2-952f-42f4-9530-548d1889f2ce",
+      "name": "Main Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -17808,
+        23728
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a JSON generator. You only output raw JSON. Nothing else. Ever.\n\nRead the input message and output this JSON format:\n{\"subject\": \"...\", \"body\": \"...\"}\n\nRules:\n- Subject: max 10 words\n- Body: 80-120 words by default\n- \"short\" in message → 40-60 words body\n- \"detailed\" or \"long\" in message → 150-200 words body\n- \"formal\" → formal tone\n- \"casual\" → casual/friendly tone\n- \"urgent\" → urgent tone\n- \"friendly\" → warm friendly tone\n- \"in Hindi\" → write in Hindi\n- \"in French\" → write in French\n- \"in Spanish\" → write in Spanish\n- \"CTA: x\" → end body with that exact CTA phrase\n- \"follow up\" → write as a follow-up to previous conversation\n- \"cold email\" → write as first-touch cold outreach\n- \"reminder\" → write as a gentle reminder\n- \"promo\" or \"offer\" or \"discount\" → promotional style\n- \"apology\" or \"sorry\" → sincere apology style\n- \"announcement\" or \"launch\" → exciting announcement style\n- \"emoji subject\" → add relevant emojis in subject line\n\nSTRICT RULES:\n- Output ONLY the JSON object\n- No explanation, no greeting, no markdown, no backticks\n- Maintain the exact meaning of the original message\n- Never add information that is not in the original message\n\nOriginal message:\n{{ $json.campaignMessage }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "2d0805ad-9528-4e30-9b4d-31469e39d420",
+      "name": "AI Email Writer",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -17600,
+        22592
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EiiqdkUJ74qTBi8V",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const ai = item.json;\n  let text = '';\n\n  if (ai && typeof ai === 'object') {\n    if (ai.candidates && Array.isArray(ai.candidates) && ai.candidates.length > 0) {\n      const candidate = ai.candidates[0];\n      if (candidate.content && candidate.content.parts && Array.isArray(candidate.content.parts)) {\n        text = candidate.content.parts[0]?.text || '';\n      }\n    }\n  }\n\n  text = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\n  let parsed = {};\n  try {\n    parsed = JSON.parse(text);\n  } catch (e) {\n    parsed = { subject: 'Important Message', body: text || 'Please contact us.' };\n  }\n\n  // Get chatId and campaignMessage from Smart Command Router\n  const routerData = $('Smart Command Router').first().json;\n\n  results.push({\n    json: {\n      subject: parsed.subject || 'Important Message',\n      body: parsed.body || '',\n      chatId: routerData.chatId,\n      campaignMessage: routerData.campaignMessage\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "527065af-b3d2-4092-902d-0bc1dbdf9ba7",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17168,
+        22576
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "65d60e72-440b-41e0-87ca-0c66cce94c30",
+      "name": "Google Sheets Read",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -16880,
+        22576
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "m1",
+              "name": "Email",
+              "value": "={{ $json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "m2",
+              "name": "subject",
+              "value": "={{ $('Parse AI Response').first().json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "m3",
+              "name": "body",
+              "value": "={{ $('Parse AI Response').first().json.body }}",
+              "type": "string"
+            },
+            {
+              "id": "m4",
+              "name": "chatId",
+              "value": "={{ $('Smart Command Router').first().json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "m5",
+              "name": "campaignMessage",
+              "value": "={{ $('Smart Command Router').first().json.campaignMessage }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d58fc100-5fac-4466-a57a-2f28b5676a28",
+      "name": "Merge Message + Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -16656,
+        22576
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "c769ed88-dd51-4f79-8466-05f28a99b497",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -16432,
+        22576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nconst accounts = [\n  { name: 'Account A', email: 'account1@gmail.com', id: 'A' },\n  { name: 'Account B', email: 'account2@gmail.com', id: 'B' },\n  { name: 'Account C', email: 'account3@gmail.com', id: 'C' },\n  { name: 'Account D', email: 'account4@gmail.com', id: 'D' },\n  { name: 'Account E', email: 'account5@gmail.com', id: 'E' }\n];\nfor (let i = 0; i < items.length; i++) {\n  const acc = accounts[i % 5];\n  results.push({ json: { ...items[i].json, selectedAccountName: acc.name, selectedAccountEmail: acc.email, selectedAccountId: acc.id, selectedAccount: acc } });\n}\nreturn results;"
+      },
+      "id": "06f47c53-0e6e-44dc-b4de-5d638f0eec4b",
+      "name": "Account Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16208,
+        22256
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "id": "e1a15661-19db-407d-9af4-013352d995cc",
+      "name": "Wait 15s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -15984,
+        22256
+      ],
+      "webhookId": "7496c898-005a-429e-a3a6-a0cfa49bf473"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.selectedAccount.email }}",
+                    "rightValue": "account1@gmail.com",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "sw-a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Account A"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.selectedAccount.email }}",
+                    "rightValue": "account2@gmail.com",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "sw-b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Account B"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.selectedAccount.email }}",
+                    "rightValue": "account3@gmail.com",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "sw-c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Account C"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.selectedAccount.email }}",
+                    "rightValue": "account4@gmail.com",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "sw-d"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Account D"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.selectedAccount.email }}",
+                    "rightValue": "account5@gmail.com",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "sw-e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Account E"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "354a878a-8e96-4f0d-8e3e-01b032224ec9",
+      "name": "Switch Accounts",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -15760,
+        22208
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "=<p>{{ $json.body }}</p>\n\n<br>\n\n<p>{{ $json.campaignMessage }}</p>",
+        "options": {
+          "senderName": "={{ $json.selectedAccount.name }}"
+        }
+      },
+      "id": "3963d98b-7af7-4703-94ee-83513fdf9440",
+      "name": "Send Email - Account A",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -15536,
+        21824
+      ],
+      "webhookId": "7ff169bd-0927-4f1f-838d-ca9045efd690",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8yymOXXQa9SkXts5",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "=<p>{{ $json.body }}</p>\n\n<br>\n\n<p>{{ $json.campaignMessage }}</p>",
+        "options": {
+          "senderName": "={{ $json.selectedAccount.name }}"
+        }
+      },
+      "id": "689d02f9-e29a-487a-a3ea-867899905275",
+      "name": "Send Email - Account B",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -15536,
+        22064
+      ],
+      "webhookId": "4a1cb45e-b532-4f5b-9ce2-daeb867d09b7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8yymOXXQa9SkXts5",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "=<p>{{ $json.body }}</p>\n\n<br>\n\n<p>{{ $json.campaignMessage }}</p>",
+        "options": {
+          "senderName": "={{ $json.selectedAccount.name }}"
+        }
+      },
+      "id": "8cd8c355-e00b-4bcc-9f79-808a9df613aa",
+      "name": "Send Email - Account C",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -15536,
+        22256
+      ],
+      "webhookId": "c8a9c4b4-8931-4df8-8f74-9c955546ff40",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8yymOXXQa9SkXts5",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "=<p>{{ $json.body }}</p>\n\n<br>\n\n<p>{{ $json.campaignMessage }}</p>",
+        "options": {
+          "senderName": "={{ $json.selectedAccount.name }}"
+        }
+      },
+      "id": "16f306ba-282f-4c33-ad34-55678ec466fb",
+      "name": "Send Email - Account D",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -15536,
+        22448
+      ],
+      "webhookId": "0e9fd8a1-6766-4db5-bdb0-b78b6ce1243e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8yymOXXQa9SkXts5",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "=<p>{{ $json.body }}</p>\n\n<br>\n\n<p>{{ $json.campaignMessage }}</p>",
+        "options": {
+          "senderName": "={{ $json.selectedAccount.name }}"
+        }
+      },
+      "id": "18c4e9a5-b4c0-4c0c-9ab5-6c9997d441e4",
+      "name": "Send Email - Account E",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -15536,
+        22688
+      ],
+      "webhookId": "d425dd6e-8b6a-4837-ba40-2a6a7402631a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8yymOXXQa9SkXts5",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "status",
+              "value": "Sent",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "sentAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "AccountUsed",
+              "value": "={{ $('Switch Accounts').item.json.selectedAccountName }}",
+              "type": "string"
+            },
+            {
+              "id": "s4",
+              "name": "email",
+              "value": "={{ $('Switch Accounts').item.json.Email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "047c1000-ff6d-40f4-8c3b-ed9e4a7f6d3a",
+      "name": "Prepare Success Update",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -15312,
+        22160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "status",
+              "value": "Failed",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "sentAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "f3",
+              "name": "AccountUsed",
+              "value": "N/A",
+              "type": "string"
+            },
+            {
+              "id": "f4",
+              "name": "email",
+              "value": "={{ $('Switch Accounts').item.json.Email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "40ea8f12-a78c-4675-ae3b-a7e4639f88ef",
+      "name": "Prepare Failed Update",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -15312,
+        22352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $json.email }}",
+            "status": "={{ $json.status }}",
+            "sentAt": "={{ $json.sentAt }}",
+            "AccountUsed": "={{ $json.AccountUsed }}"
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentAt",
+              "displayName": "sentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AccountUsed",
+              "displayName": "AccountUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "10ab9058-60fd-4f77-a818-18075aef999d",
+      "name": "Google Sheets Update Success",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -15088,
+        22544
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $json.email }}",
+            "status": "={{ $json.status }}",
+            "sentAt": "={{ $json.sentAt }}",
+            "AccountUsed": "={{ $json.AccountUsed }}",
+            "row_number": 0
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentAt",
+              "displayName": "sentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AccountUsed",
+              "displayName": "AccountUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "c5942bcd-72af-49c7-8a63-83fe8d19ccc0",
+      "name": "Google Sheets Update Failed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -15088,
+        22736
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "030bc9dc-0333-4931-ae02-9a6448cb6303",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -16272,
+        21840
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Smart Command Router').first().json.chatId }}",
+        "text": "=📊 *Campaign Complete*\n\n⏰ Completed: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\n\n✅ Campaign execution finished successfully.\n\n📋 *Available Commands*\n\n/stats — view full campaign report",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "a1c7db92-12dd-45c2-aef6-094e04c152d5",
+      "name": "Telegram Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -15616,
+        21616
+      ],
+      "webhookId": "88777b4f-5903-4dd7-b3ea-4d882ca7685c",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "83268fe0-83b3-4fce-bc1e-6516a164ef28",
+      "name": "Read All for Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17520,
+        22880
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst target = $('Smart Command Router').first().json.target || 'all';\nconst chatId = $('Smart Command Router').first().json.chatId;\nlet message = '';\n\nif (target === 'all') {\n  if (items.length === 0) {\n    message = '📋 *Email Status*\\n\\nNo emails found in the sheet.';\n  } else {\n    const rows = items.map(i => `📧 ${i.json.Email} → *${i.json.status || 'N/A'}*`);\n    message = `📋 *All Email Statuses (${items.length} total)*\\n\\n${rows.join('\\n')}`;\n  }\n} else {\n  const found = items.find(i => i.json.Email === target);\n  if (found) {\n    message = `📧 *Status for ${target}*\\n\\nStatus: *${found.json.status || 'N/A'}*\\nSent At: ${found.json.sentAt || 'N/A'}\\nAccount Used: ${found.json.AccountUsed || 'N/A'}`;\n  } else {\n    message = `❌ Email not found: ${target}`;\n  }\n}\n\nreturn [{ json: { message, chatId } }];"
+      },
+      "id": "f3e5b883-d4a3-48f6-bcbd-0e191b037a35",
+      "name": "Build Status Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17168,
+        22880
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "232de8c2-4ac0-4647-b4a0-aa3f92264280",
+      "name": "Send Status to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16880,
+        22880
+      ],
+      "webhookId": "6d71ea29-d419-4fd3-9f06-53e617af923f",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "004c1932-96b3-4ce6-b8dc-d351c35ed519",
+      "name": "Read for Reset",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17520,
+        23072
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst target = $('Smart Command Router').first().json.target || 'all';\nconst chatId = $('Smart Command Router').first().json.chatId;\nconst results = [];\n\nfor (const item of items) {\n  const row = item.json;\n  let shouldReset = false;\n  if (target === 'all') shouldReset = true;\n  else if (target === 'all_failed' && row.status === 'Failed') shouldReset = true;\n  else if (row.Email === target) shouldReset = true;\n  if (shouldReset) {\n    results.push({ json: { Email: row.Email, status: 'pending', sentAt: '', AccountUsed: '', chatId } });\n  }\n}\n\nif (results.length === 0) {\n  results.push({ json: { Email: '_none_', status: 'pending', sentAt: '', AccountUsed: '', chatId, noMatch: true } });\n}\n\nreturn results;"
+      },
+      "id": "5a69c96e-61ce-4735-acfe-231d7f894b3e",
+      "name": "Filter for Reset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17168,
+        23072
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $json.Email }}",
+            "status": "pending",
+            "sentAt": "",
+            "AccountUsed": ""
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentAt",
+              "displayName": "sentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AccountUsed",
+              "displayName": "AccountUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "58145345-6509-4489-8043-d53e47fb31e0",
+      "name": "Reset to Pending in Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -16880,
+        23072
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Smart Command Router').first().json.chatId }}",
+        "text": "=✅ *Reset Complete*\n\nEmails have been reset to *pending* status.\nThey will be included in the next `/send` campaign.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "ba56f58d-9847-49f9-bbbc-4cc97cc74e91",
+      "name": "Confirm Reset to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16304,
+        23056
+      ],
+      "webhookId": "7b2060d4-cca7-45d5-97c3-ff63b558bcd1",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst chatId = $('Smart Command Router').first().json.chatId;\nconst target = $('Smart Command Router').first().json.target_email;\nconst campaignMessage = $('Smart Command Router').first().json.campaignMessage;\nreturn [{ json: { target_email: target, campaignMessage, chatId } }];"
+      },
+      "id": "5521b560-7f56-4109-9a22-3977f8eae632",
+      "name": "Prep Specific Send",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17520,
+        23872
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a JSON generator. Output ONLY raw JSON, no markdown, no backticks.\n\nRewrite this message as a professional email:\n{{ $json.campaignMessage }}\n\nOutput format:\n{\"subject\": \"max 10 word subject\", \"body\": \"80-120 word professional email body\"}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "195997c1-c2a6-43ad-af2f-c3f536704861",
+      "name": "AI Write Specific Email",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -17232,
+        23872
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EiiqdkUJ74qTBi8V",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ai = $input.first().json;\nlet text = '';\nif (ai.candidates?.[0]?.content?.parts?.[0]?.text) {\n  text = ai.candidates[0].content.parts[0].text;\n}\ntext = text.replace(/```json/gi,'').replace(/```/g,'').trim();\nlet parsed = {};\ntry { parsed = JSON.parse(text); } catch(e) { parsed = { subject: 'Message for you', body: text }; }\nconst routerData = $('Smart Command Router').first().json;\nreturn [{ json: { subject: parsed.subject, body: parsed.body, target_email: routerData.target_email, chatId: routerData.chatId } }];"
+      },
+      "id": "6db11680-5d10-4496-a877-6a576d8c62b6",
+      "name": "Parse Specific Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16880,
+        23872
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.target_email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "=<p>{{ $json.body }}</p>",
+        "options": {
+          "senderName": "Campaign Bot"
+        }
+      },
+      "id": "4dd739c0-e345-4143-8337-0cda2ef56ad8",
+      "name": "Send to Specific Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -16656,
+        23872
+      ],
+      "webhookId": "a5da6445-b159-4426-8979-5b4326dbb0d9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8yymOXXQa9SkXts5",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Smart Command Router').first().json.chatId }}",
+        "text": "=✅ *Email Sent*\n\nTo: `{{ $('Smart Command Router').first().json.target_email }}`\nSubject: {{ $('Parse Specific Email').first().json.subject }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "6c57f2b5-053b-4c77-a15c-d40f6519fd23",
+      "name": "Confirm Specific Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16432,
+        23872
+      ],
+      "webhookId": "8365653e-bd26-45ba-9ee1-c011ab3271d7",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "92c56bdc-4b40-4791-8630-54240ad61d2f",
+      "name": "Read All for Stats",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17520,
+        24064
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet sent = 0, failed = 0, pending = 0;\nfor (const item of items) {\n  const s = (item.json.status || '').toLowerCase();\n  if (s === 'sent') sent++;\n  else if (s === 'failed') failed++;\n  else if (s === 'pending') pending++;\n}\nconst total = items.length;\nconst successRate = (sent + failed) > 0 ? ((sent / (sent + failed)) * 100).toFixed(1) + '%' : 'N/A';\nreturn [{\n  json: {\n    message: `📊 *Campaign Stats*\\n\\n📧 Total Emails: ${total}\\n✅ Sent: ${sent}\\n❌ Failed: ${failed}\\n⏳ Pending: ${pending}\\n📈 Success Rate: ${successRate}`,\n    chatId: $('Smart Command Router').first().json.chatId\n  }\n}];"
+      },
+      "id": "260932a2-a3ae-4415-b816-27e253df4bb2",
+      "name": "Build Stats Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17168,
+        24064
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "66bd9c9e-5dbe-42d4-97f8-3018fdad96dc",
+      "name": "Send Stats to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16880,
+        24064
+      ],
+      "webhookId": "b3a39f66-1e6c-4cb8-ad37-4d2a9aefa98c",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "options": {}
+      },
+      "id": "7303a407-6e07-4385-b974-4b8c8995c66d",
+      "name": "Read All Emails for List",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17520,
+        24256
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst lines = items.map((i, idx) => `${idx + 1}. ${i.json.Email} — *${i.json.status || 'N/A'}*`);\nconst message = `📋 *Email List (${items.length} total)*\\n\\n${lines.join('\\n')}`;\nreturn [{ json: { message, chatId: $('Smart Command Router').first().json.chatId } }];"
+      },
+      "id": "d33aca3e-9184-4e75-ba6e-20132cace151",
+      "name": "Build List Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17168,
+        24256
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "4d2a0666-37a1-4eee-a322-e6c0ead9ea11",
+      "name": "Send List to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16880,
+        24256
+      ],
+      "webhookId": "5e013278-4418-4b53-b3b0-e42ab82ee1ea",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "Failed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f916e97d-499c-4595-bb40-62e17c54987e",
+      "name": "Read Failed Emails",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17520,
+        24448
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $json.Email }}",
+            "status": "pending",
+            "sentAt": "",
+            "AccountUsed": ""
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentAt",
+              "displayName": "sentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AccountUsed",
+              "displayName": "AccountUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5bee5458-3a7b-42c7-8639-fbdeb5847457",
+      "name": "Reset Failed to Pending",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17168,
+        24448
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Smart Command Router').first().json.chatId }}",
+        "text": "=🔄 *Resend Queued*\n\nAll failed emails reset to *pending*.\nNow run `/send your message` to resend them.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "7dd6b71f-f43e-482d-ab7e-c7932bc65daa",
+      "name": "Confirm Resend Queued",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16880,
+        24448
+      ],
+      "webhookId": "269e6d10-3c75-4e61-a68c-71f34ecbe5fe",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=🤖 *Campaign Bot Commands*\n\n📧 *SEND CAMPAIGN*\n/send your message here\n\n🎨 *Tone modifiers* (add to /send):\nformal, casual, urgent, friendly, short, detailed, cold email, follow up, reminder, promo, in Hindi, in French\n\n📊 *STATUS AND REPORTS*\n/status — show all emails\n/status email@x.com — one email\n/stats — full report\n/list — list all emails\n\n🔄 *RESET*\n/reset all — reset all to pending\n/reset failed — reset failed only\n/reset email@x.com — reset one email\n/resendfailed — queue failed to resend\n\n➕ *MANAGE LIST*\n/add email@x.com — add one email\n/add email1@x.com, email2@x.com — add multiple\n/remove email@x.com — remove email\n\n🎯 *DIRECT SEND*\n/sendto email@x.com: your message\n\n❓ Send /help to see this again",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "0b5a66e3-b278-4295-8972-6bf9dcb72e94",
+      "name": "Send Help Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -17520,
+        24640
+      ],
+      "webhookId": "0e6e63b6-fa79-4e7b-97ac-50758993f9c7",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=❓ Unknown command: `{{ $json.rawText }}`\n\nSend `/help` to see all available commands.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "d90e54c6-f97f-4dc3-86c7-8d1eff91c6e4",
+      "name": "Send Unknown Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -17520,
+        24832
+      ],
+      "webhookId": "400b76ca-25f0-44fb-9130-a154510b74fe",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "4662902d-bc00-4ee8-999e-87168b929e0f",
+      "name": "Read Sheet for Add",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17520,
+        23392
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sheetRows = $input.all();\nconst routerData = $('Smart Command Router').first().json;\nlet newEmails = [...(routerData.emails || [])];\nif (newEmails.length === 0 && routerData.email) {\n  newEmails.push(routerData.email);\n}\nconst chatId = routerData.chatId;\nconst existingSet = new Set();\nif (sheetRows[0] && sheetRows[0].json && sheetRows[0].json.Email !== undefined) {\n  for (const i of sheetRows) {\n    const email = (i.json.Email || i.json.email || '').toString().toLowerCase().trim();\n    if (email) existingSet.add(email);\n  }\n}\nconst toAdd = [];\nconst skipped = [];\nfor (const email of newEmails) {\n  const norm = email.toLowerCase().trim();\n  if (!norm || !norm.includes('@')) continue;\n  if (existingSet.has(norm)) {\n    skipped.push(email);\n  } else {\n    toAdd.push(email);\n    existingSet.add(norm);\n  }\n}\nreturn [{ json: { toAdd, skipped, chatId, hasNew: toAdd.length > 0 } }];"
+      },
+      "id": "e2576606-0157-49c5-bcfb-3143235f6980",
+      "name": "Prepare Add Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17168,
+        23392
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasNew }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "if-add-check"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "50b2a494-ea24-4d86-9ae4-6a96c341f269",
+      "name": "Has New Emails",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -16880,
+        23392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst data = $input.first().json;\nconst toAdd = data.toAdd || [];\nconst skipped = data.skipped || [];\nconst chatId = data.chatId;\n\nreturn toAdd.map(email => ({\n  json: {\n    Email: email,\n    status: 'pending',\n    sentAt: '',\n    AccountUsed: '',\n    skipped,\n    toAdd,\n    chatId\n  }\n}));\n"
+      },
+      "id": "da2c2698-1737-4c15-a18b-8e8a96f8bb55",
+      "name": "Split Add Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16656,
+        23264
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $json.Email }}",
+            "status": "={{ $json.status }}",
+            "sentAt": "={{ $json.sentAt }}",
+            "AccountUsed": "={{ $json.AccountUsed }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentAt",
+              "displayName": "sentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AccountUsed",
+              "displayName": "AccountUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3b7e9e31-f7cc-43bd-a7ee-5c935577f6e2",
+      "name": "Append Email to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -16432,
+        23264
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Smart Command Router').first().json.chatId }}",
+        "text": "={{ \n(()=>{\n  const prepData = $('Prepare Add Rows').first().json;\n  const toAdd = prepData.toAdd || [];\n  const skipped = prepData.skipped || [];\n  let msg = '➕ *Email Add Result*\\n\\n';\n  if (toAdd.length > 0) {\n    msg += '✅ *Added (' + toAdd.length + ')*\\n' + toAdd.map(e => e).join('\\n') + '\\n\\n';\n  }\n  if (skipped.length > 0) {\n    msg += '⚠️ *Already exists, skipped (' + skipped.length + ')*\\n' + skipped.map(e => e).join('\\n');\n  }\n  if (toAdd.length === 0 && skipped.length === 0) {\n    msg += '❌ No valid emails found in command.';\n  }\n  return msg;\n})()\n}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "93614cf0-29e0-43c6-a809-8a5be98beb31",
+      "name": "Confirm Email Added",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16032,
+        23392
+      ],
+      "webhookId": "609c77f0-3d6d-4fca-9779-c503ce2ba654",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "b93469c4-1215-469a-9ed8-2d7323bf13a7",
+      "name": "Read Sheet for Remove",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -17520,
+        23680
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sheetRows = $input.all();\nconst routerData = $('Smart Command Router').first().json;\nlet emailsToRemove = [...(routerData.emails || [])];\nif (emailsToRemove.length === 0 && routerData.email) {\n  emailsToRemove.push(routerData.email);\n}\nconst chatId = routerData.chatId;\nconst toRemove = [];\nconst notFound = [];\nif (!sheetRows[0] || !sheetRows[0].json || sheetRows[0].json.Email === undefined) {\n  return [{ json: { toRemove: [], notFound: emailsToRemove, chatId, hasMatches: false, removedEmails: [] } }];\n}\nfor (const emailRaw of emailsToRemove) {\n  const norm = emailRaw.toLowerCase().trim();\n  const match = sheetRows.find(\n    row => (row.json.Email || row.json.email || '').toString().toLowerCase().trim() === norm\n  );\n  if (match) {\n    toRemove.push({ exactEmail: match.json.Email, row_number: match.json.row_number });\n  } else {\n    notFound.push(emailRaw);\n  }\n}\ntoRemove.sort((a, b) => b.row_number - a.row_number);\nreturn [{ json: { toRemove, notFound, chatId, hasMatches: toRemove.length > 0, removedEmails: toRemove.map(r => r.exactEmail) } }];"
+      },
+      "id": "f18f6eca-2a24-4f4b-947c-fb62ddc55deb",
+      "name": "Build Remove List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -17168,
+        23680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasMatches }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "if-remove-check"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "083994e7-8ccb-4211-91b8-6799b521b366",
+      "name": "Has Emails to Remove",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -16880,
+        23680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst data = $input.first().json;\nconst toRemove = data.toRemove || [];\nconst notFound = data.notFound || [];\nconst chatId = data.chatId;\nconst removedEmails = data.removedEmails || [];\n\nreturn toRemove.map(r => ({\n  json: {\n    exactEmail: r.exactEmail,\n    row_number: r.row_number,\n    notFound,\n    removedEmails,\n    chatId\n  }\n}));\n"
+      },
+      "id": "4c2abb57-c685-421d-b1e3-f93ae7acd2b4",
+      "name": "Split Remove Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16656,
+        23536
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk",
+          "mode": "list",
+          "cachedResultName": "emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ABWi8ZS_n8iWNLQwHOoSnGI1hSX1-slJP0BNuE0pHbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "startIndex": "={{ $json.row_number }}"
+      },
+      "id": "1c5f3122-cf63-46e8-88a7-f06c0c0d2cd8",
+      "name": "Delete Email Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -16432,
+        23552
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jwG2xQKXXNs9oD5b",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Smart Command Router').first().json.chatId }}",
+        "text": "={{ \n(()=>{\n  const buildData = $('Build Remove List').first().json;\n  const removed = buildData.removedEmails || [];\n  const notFound = buildData.notFound || [];\n  let msg = '🗑️ *Email Remove Result*\\n\\n';\n  if (removed.length > 0) {\n    msg += '✅ *Removed (' + removed.length + ')*\\n' + removed.join('\\n') + '\\n\\n';\n  }\n  if (notFound.length > 0) {\n    msg += '❌ *Not found (' + notFound.length + ')*\\n' + notFound.join('\\n');\n  }\n  if (removed.length === 0 && notFound.length === 0) {\n    msg += '❌ No valid emails in command.';\n  }\n  return msg;\n})()\n}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "60a1f68f-b7e1-4510-9044-0593463597a0",
+      "name": "Confirm Email Removed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16000,
+        23696
+      ],
+      "webhookId": "3cc76049-1cb2-4d8a-9714-bfbef372ab06",
+      "credentials": {
+        "telegramApi": {
+          "id": "mFWa1rv08DM8HAaV",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "477ecdae-e417-41b9-975f-d6f996913d0d",
+      "name": "Aggregate Reset",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -16528,
+        23056
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "be4d75e4-2ba8-4b5d-9b13-e3f6a5755f21",
+      "name": "Aggregate Add",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -16240,
+        23248
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "bb8ba732-c5ca-4025-b9c9-e8f22aa0fd73",
+      "name": "Aggregate Remove",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -16224,
+        23536
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Aggregate Remove": {
+      "main": [
+        [
+          {
+            "node": "Confirm Email Removed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet for Logic": {
+      "main": [
+        [
+          {
+            "node": "Logic Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Update Failed": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Update Success": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Smart Command Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smart Command Router": {
+      "main": [
+        [
+          {
+            "node": "Main Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Main Switch": {
+      "main": [
+        [
+          {
+            "node": "AI Email Writer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read All for Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read for Reset",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Sheet for Add",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Sheet for Remove",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prep Specific Send",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read All for Stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read All Emails for List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Failed Emails",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Help Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Unknown Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Email Writer": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Read": {
+      "main": [
+        [
+          {
+            "node": "Merge Message + Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Message + Email": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Account Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Account Router": {
+      "main": [
+        [
+          {
+            "node": "Wait 15s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 15s": {
+      "main": [
+        [
+          {
+            "node": "Switch Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Accounts": {
+      "main": [
+        [
+          {
+            "node": "Send Email - Account A",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email - Account B",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email - Account C",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email - Account D",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email - Account E",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email - Account A": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failed Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email - Account B": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failed Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email - Account C": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failed Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email - Account D": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failed Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email - Account E": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failed Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Success Update": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Update Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Failed Update": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Update Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Telegram Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All for Status": {
+      "main": [
+        [
+          {
+            "node": "Build Status Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Status Message": {
+      "main": [
+        [
+          {
+            "node": "Send Status to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read for Reset": {
+      "main": [
+        [
+          {
+            "node": "Filter for Reset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter for Reset": {
+      "main": [
+        [
+          {
+            "node": "Reset to Pending in Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset to Pending in Sheet": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Reset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Specific Send": {
+      "main": [
+        [
+          {
+            "node": "AI Write Specific Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Write Specific Email": {
+      "main": [
+        [
+          {
+            "node": "Parse Specific Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Specific Email": {
+      "main": [
+        [
+          {
+            "node": "Send to Specific Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Specific Email": {
+      "main": [
+        [
+          {
+            "node": "Confirm Specific Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All for Stats": {
+      "main": [
+        [
+          {
+            "node": "Build Stats Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stats Message": {
+      "main": [
+        [
+          {
+            "node": "Send Stats to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All Emails for List": {
+      "main": [
+        [
+          {
+            "node": "Build List Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build List Message": {
+      "main": [
+        [
+          {
+            "node": "Send List to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Failed Emails": {
+      "main": [
+        [
+          {
+            "node": "Reset Failed to Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset Failed to Pending": {
+      "main": [
+        [
+          {
+            "node": "Confirm Resend Queued",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet for Add": {
+      "main": [
+        [
+          {
+            "node": "Prepare Add Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Add Rows": {
+      "main": [
+        [
+          {
+            "node": "Has New Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has New Emails": {
+      "main": [
+        [
+          {
+            "node": "Split Add Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirm Email Added",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Add Items": {
+      "main": [
+        [
+          {
+            "node": "Append Email to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Email to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Add",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet for Remove": {
+      "main": [
+        [
+          {
+            "node": "Build Remove List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Remove List": {
+      "main": [
+        [
+          {
+            "node": "Has Emails to Remove",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Emails to Remove": {
+      "main": [
+        [
+          {
+            "node": "Split Remove Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirm Email Removed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Remove Items": {
+      "main": [
+        [
+          {
+            "node": "Delete Email Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Email Row": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Remove",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Reset": {
+      "main": [
+        [
+          {
+            "node": "Confirm Reset to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Add": {
+      "main": [
+        [
+          {
+            "node": "Confirm Email Added",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "2c67d582-efab-4277-b0ba-944aeed8f93c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c380b92f3d7defac604c4554bd67965995e8bc82f13e191c517815c659f92ab6"
+  },
+  "id": "4N05Ygf9l7sF5lks",
+  "tags": []
+}
