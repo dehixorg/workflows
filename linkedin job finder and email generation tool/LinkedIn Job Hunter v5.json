@@ -1,0 +1,1351 @@
+{
+  "name": "LinkedIn Job Hunter v5",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Job Hunt – Search Preferences",
+        "formDescription": "Fill in your job search criteria and click Submit. The workflow will run automatically.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Job Role",
+              "placeholder": "e.g. React Developer, Node.js Engineer, n8n Automation",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Location",
+              "placeholder": "e.g. Bangalore, India, Mumbai",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Remote Work?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "No"
+                  },
+                  {
+                    "option": "Yes – Remote Only"
+                  },
+                  {
+                    "option": "Yes – Hybrid OK"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Job Type",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Full-time"
+                  },
+                  {
+                    "option": "Contract / Freelance"
+                  },
+                  {
+                    "option": "Internship"
+                  },
+                  {
+                    "option": "Part-time"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Experience Level",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Entry / Fresher (0-2 years)"
+                  },
+                  {
+                    "option": "Mid Level (2-5 years)"
+                  },
+                  {
+                    "option": "Senior / Lead (5+ years)"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -2992,
+        1088
+      ],
+      "id": "34bf5363-e955-4c1d-884d-be4323e3ac77",
+      "name": "Form Trigger: Job Preferences",
+      "webhookId": "63c07d60-1cfa-4cfa-95a0-b0cf8e9bb554"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read structured form output — handles both form field names and pre-processed JSON keys\nconst f = $json;\n\nconst role      = String(f['Job Role']              || f['role']            || '').trim() || 'Software Developer';\nconst location  = String(f['Location']              || f['location']        || '').trim() || 'India';\nconst remoteRaw = String(f['Remote Work?']          || f['isRemote']        || '').toLowerCase();\nconst jtRaw     = String(f['Job Type']              || f['jobType']         || '').toLowerCase();\nconst elRaw     = String(f['Experience Level']      || f['experienceLevel'] || '').toLowerCase();\nconst chatId    = String(f['Your Telegram Chat ID'] || f['telegramChatId']  || '').trim();\n\nconst isRemote = remoteRaw.includes('yes') || remoteRaw === 'true';\n\nconst jtParam =\n  jtRaw.includes('contract') || jtRaw.includes('freelance') ? '&f_JT=C' :\n  jtRaw.includes('intern')   ? '&f_JT=I' :\n  jtRaw.includes('part')     ? '&f_JT=P' : '&f_JT=F';\n\nconst remoteParam = isRemote ? '&f_WT=2' : '';\n\nconst expParam =\n  elRaw.includes('entry') || elRaw.includes('fresher') ? '&f_E=1,2' :\n  elRaw.includes('senior') || elRaw.includes('lead')   ? '&f_E=4,5' : '&f_E=3,4';\n\nconst searchUrl =\n  'https://www.linkedin.com/jobs/search/?keywords=' + encodeURIComponent(role) +\n  '&location=' + encodeURIComponent(location) +\n  remoteParam + jtParam + expParam +\n  '&f_TPR=r604800&position=1&pageNum=0';\n\nreturn [{\n  json: {\n    role,\n    location,\n    isRemote,\n    jobType:         jtRaw,\n    experienceLevel: elRaw,\n    searchUrl,\n    telegramChatId:  chatId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2768,
+        1088
+      ],
+      "id": "07a9d76a-c479-4574-a54d-5cb8f4b32e45",
+      "name": "Build LinkedIn Search URL"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/curious_coder~linkedin-jobs-scraper/run-sync-get-dataset-items?token=apify_api_nNMilujzeazJDvzAj5afA90Qsf3eyR4DDJwo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"count\": 25,\n  \"scrapeCompany\": true,\n  \"urls\": [\"{{ $json.searchUrl }}\"]\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2544,
+        1088
+      ],
+      "id": "835f8616-8e76-46a8-984b-236359c207b3",
+      "name": "Apify: Scrape LinkedIn Jobs",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0X2jnPE4Bvo9VOud",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE",
+          "mode": "list",
+          "cachedResultName": "job hunt",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 388744968,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit#gid=388744968"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -2320,
+        1088
+      ],
+      "id": "bdc5c71e-4456-46cd-b065-9b6eb9a2dfa6",
+      "name": "Read: Existing Sheet Rows",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Ft8AWZkw04rv05zI",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/1nwnrPXwslg_f7CAOlHtZhs0bE8DnvazmY3b7U_QHMO0/edit?usp=sharing"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -2112,
+        1040
+      ],
+      "id": "fc9cb1e8-c71e-44d9-a4df-940a63aeac84",
+      "name": "Get Resume from Google Docs",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "QYBDosp6qI9mjA3T",
+          "name": "Google Docs account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── Safe string helper ───────────────────────────────────────────────────────\nconst str = (v) => {\n  if (v === null || v === undefined || v === false || v === true) return '';\n  const s = String(v).trim();\n  return (s === 'null' || s === 'undefined' || s === 'false' || s === 'N/A') ? '' : s;\n};\n\n// ─── Inputs ───────────────────────────────────────────────────────────────────\n// Direct predecessor is Get Resume (Google Docs)\nconst resumeRaw = str($input.first().json.content);\nconst resumeSnippet = resumeRaw.replace(/\\s+/g, ' ').trim().substring(0, 800);\n\n// All scraped jobs from Apify\nconst apifyItems  = $('Apify: Scrape LinkedIn Jobs').all();\n\n// All existing sheet rows (for duplicate check)\nconst sheetRows   = $('Read: Existing Sheet Rows').all();\n\n// Build a set of companies already in the sheet (Sent OR Pending) — lowercase\nconst existingCompanies = new Set(\n  sheetRows\n    .map(r => str(r.json['Company']).toLowerCase())\n    .filter(c => c.length > 0)\n);\n\n// Search context\nconst searchCtx = $('Build LinkedIn Search URL').first().json;\nconst searchRole   = str(searchCtx.role);\nconst telegramChatId = str(searchCtx.telegramChatId);\n\n// ─── Process each scraped job ─────────────────────────────────────────────────\nconst newJobs = [];\nconst seenCompanies = new Set(); // dedup within this run\n\nfor (const item of apifyItems) {\n  const d = item.json;\n\n  // ── Company name — try every possible Apify field name ────────────────────\n  const company = str(d.companyName) || str(d.company) || str(d.employer) || str(d.organizationName) || '';\n  if (!company) continue; // skip jobs with no company\n\n  const companyLower = company.toLowerCase();\n  if (existingCompanies.has(companyLower)) continue; // already in sheet\n  if (seenCompanies.has(companyLower)) continue;     // dup within this run\n  seenCompanies.add(companyLower);\n\n  // ── Job title ─────────────────────────────────────────────────────────────\n  const jobTitle = str(d.title) || str(d.jobTitle) || str(d.position) || str(d.name) || searchRole || 'Developer';\n\n  // ── Location ─────────────────────────────────────────────────────────────\n  const location = str(d.location) || str(d.jobLocation) || str(d.city) || '';\n\n  // ── Company website / domain ──────────────────────────────────────────────\n  const website = str(d.companyWebsite) || str(d.companyUrl) || str(d.company_url) || '';\n  const domain  = website\n    .replace(/https?:\\/\\/(www\\.)?/, '')\n    .split('/')[0].split('?')[0].trim();\n\n  // ── Job URL ───────────────────────────────────────────────────────────────\n  const jobUrl = str(d.link) || str(d.jobUrl) || str(d.url) || str(d.applyUrl) || str(d.externalApplyLink) || '';\n\n  // ── Salary ────────────────────────────────────────────────────────────────\n  const salary = str(d.salary) || str(d.salaryRange) || str(d.compensation) || '';\n\n  // ── Applicants ────────────────────────────────────────────────────────────\n  const applicants = str(d.applicantsCount) || str(d.numberOfApplicants) || str(d.applicants) || '';\n\n  // ── Employment type ───────────────────────────────────────────────────────\n  const jobType = str(d.employmentType) || str(d.jobType) || str(d.workType) || '';\n\n  // ── Posted date ───────────────────────────────────────────────────────────\n  const postedDate = str(d.postedDate) || str(d.postedAt) || str(d.datePosted) || str(d.listedAt) || '';\n\n  // ── Description — clean HTML entities and tags, cap at 600 for sheet ──────\n  const rawDesc = str(d.descriptionText) || str(d.description) || str(d.jobDescription) || '';\n  const descClean = rawDesc\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\")\n    .replace(/&[a-z]+;/gi, ' ')\n    .replace(/\\s+/g, ' ').trim();\n\n  const descForSheet = descClean.substring(0, 600);\n  const descForEmail = descClean.substring(0, 1500); // richer for AI email\n\n  newJobs.push({\n    json: {\n      // ── Columns to save in Sheet ──────────────────────────────────────────\n      Timestamp:           new Date().toISOString(),\n      Company:             company,\n      'Job Title':         jobTitle,\n      Location:            location,\n      Salary:              salary,\n      Applicants:          applicants,\n      'Job Type':          jobType,\n      'Posted Date':       postedDate,\n      'Job URL':           jobUrl,\n      'Company Website':   website,\n      'Company Domain':    domain,\n      'Job Description':   descForSheet,\n      'Resume Snippet':    resumeSnippet,\n      'Send Status':       'Pending',\n      'Recruiter Email':   '',\n      'Email Sent Date':   '',\n      // ── Pass-through (used in loop, not saved in sheet) ───────────────────\n      _descForEmail:       descForEmail,\n      _resumeSnippet:      resumeSnippet,\n      _telegramChatId:     telegramChatId\n    }\n  });\n}\n\nif (newJobs.length === 0) {\n  return [{\n    json: {\n      _skip: true,\n      _telegramChatId: telegramChatId,\n      _message: 'No new companies found. All scraped companies are already in the sheet.'\n    }\n  }];\n}\n\nreturn newJobs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1872,
+        1072
+      ],
+      "id": "9cc360e1-f57e-4c98-8e8b-cb245b66121b",
+      "name": "Prepare + Deduplicate Jobs"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "ceab6863-8737-4d72-806f-0311a545cad8",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        1088
+      ],
+      "id": "1d32d5af-e578-4d9a-89b7-717f9945715c",
+      "name": "IF: New Jobs Found?"
+    },
+    {
+      "parameters": {
+        "chatId": "5363500098",
+        "text": "No new companies found for your search. All matching jobs are already in your sheet (either Pending or already Sent).",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1264,
+        704
+      ],
+      "id": "c3daef79-88c5-4378-b917-132fea05dfd5",
+      "name": "Telegram: No New Jobs",
+      "webhookId": "3eee3392-aaac-47c6-a4c6-7f8c0051f45f",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "W2E71t9dfDSz0CAP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE",
+          "mode": "list",
+          "cachedResultName": "job hunt",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 388744968,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit#gid=388744968"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json['Timestamp'] }}",
+            "Company": "={{ $json['Company'] }}",
+            "Job Title": "={{ $json['Job Title'] }}",
+            "Location": "={{ $json['Location'] }}",
+            "Salary": "={{ $json['Salary'] }}",
+            "Applicants": "={{ $json['Applicants'] }}",
+            "Job URL": "={{ $json['Job URL'] }}",
+            "Send Status": "Pending",
+            "Job_type ": "={{ $json[\"Job Type\"] }}",
+            "Company_Website": "={{ $json[\"Company Website\"] }}",
+            "Company_Domain": "={{ $json[\"Company Domain\"] }}",
+            "Job_Description": "={{ $json[\"Job Description\"] }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id ",
+              "displayName": "id ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Salary",
+              "displayName": "Salary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Applicants",
+              "displayName": "Applicants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recruiter Email",
+              "displayName": "Recruiter Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Match %",
+              "displayName": "Match %",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Strengths",
+              "displayName": "Strengths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Gaps",
+              "displayName": "Gaps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job URL",
+              "displayName": "Job URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Send Status",
+              "displayName": "Send Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job_type ",
+              "displayName": "Job_type ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company_Website",
+              "displayName": "Company_Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company_Domain",
+              "displayName": "Company_Domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job_Description",
+              "displayName": "Job_Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Column 19",
+              "displayName": "Column 19",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -1360,
+        1152
+      ],
+      "id": "9b2eb0af-4227-4133-92be-0820169fb09c",
+      "name": "Save ALL Job Details to Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Ft8AWZkw04rv05zI",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// After saving all Pending rows, carry forward the telegramChatId and total count\n// We can't get it directly from the sheet save output — pull from the Prepare node\nconst preparedItems = $('Prepare + Deduplicate Jobs').all();\nconst totalFound = preparedItems.filter(i => !i.json._skip).length;\nconst telegramChatId = (preparedItems[0]?.json?._telegramChatId || '').trim();\n\nreturn [{ json: { totalFound, telegramChatId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1184,
+        944
+      ],
+      "id": "58f0281d-e192-447a-9191-7c313f95d36b",
+      "name": "Capture Run Context"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE",
+          "mode": "list",
+          "cachedResultName": "job hunt",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 388744968,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit#gid=388744968"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Send Status",
+              "lookupValue": "Pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -992,
+        992
+      ],
+      "id": "83caf3ef-1461-4ec6-98e6-00071ac5c188",
+      "name": "Read: Pending Jobs from Sheet",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Ft8AWZkw04rv05zI",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -784,
+        976
+      ],
+      "id": "181fe27c-4a4b-4b39-89ba-8c89c7f21291",
+      "name": "Loop: One Job at a Time"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE",
+          "mode": "list",
+          "cachedResultName": "job hunt",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 388744968,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit#gid=388744968"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -464,
+        720
+      ],
+      "id": "b84965b3-ee5c-4b62-8853-7fe99af56695",
+      "name": "Read Sheet for Summary",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Ft8AWZkw04rv05zI",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate success rate and build summary message\nconst rows = $input.all();\nconst total   = rows.length;\nconst sent    = rows.filter(r => String(r.json['Send Status'] || '').toLowerCase() === 'sent').length;\nconst failed  = rows.filter(r => String(r.json['Send Status'] || '').toLowerCase().startsWith('failed')).length;\nconst skipped = rows.filter(r => String(r.json['Send Status'] || '').toLowerCase().includes('skipped')).length;\nconst pending = rows.filter(r => String(r.json['Send Status'] || '').toLowerCase() === 'pending').length;\n\nconst successRate = total > 0 ? Math.round((sent / total) * 100) : 0;\n\n// List sent companies\nconst sentList = rows\n  .filter(r => String(r.json['Send Status'] || '').toLowerCase() === 'sent')\n  .slice(0, 10)\n  .map(r => '  • ' + String(r.json['Company'] || '') + ' — ' + String(r.json['Recruiter Email'] || 'email sent'))\n  .join('\\n');\n\nconst sheetUrl = 'https://docs.google.com/spreadsheets/d/REPLACE_WITH_YOUR_GOOGLE_SHEET_ID';\n\nconst message =\n  'Job Hunt Complete!\\n\\n' +\n  'Results:\\n' +\n  '  Emails Sent:    ' + sent + '\\n' +\n  '  Failed:         ' + failed + '\\n' +\n  '  Skipped:        ' + skipped + '\\n' +\n  '  Success Rate:   ' + successRate + '%\\n' +\n  '  Total in Sheet: ' + total + '\\n\\n' +\n  (sentList ? 'Companies Emailed:\\n' + sentList + '\\n\\n' : '') +\n  'View full sheet:\\n' + sheetUrl;\n\n// Pull telegramChatId from context node\nconst ctx = $('Capture Run Context').first().json;\nconst telegramChatId = String(ctx.telegramChatId || '');\n\nreturn [{ json: { message, telegramChatId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        640
+      ],
+      "id": "fb4d9f35-affe-43a9-baf6-aef6bb07ecab",
+      "name": "Build Summary Message"
+    },
+    {
+      "parameters": {
+        "chatId": "=5363500098",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        32,
+        608
+      ],
+      "id": "b02aa1b0-d0c0-47e7-bc81-66e3f1530e15",
+      "name": "Telegram: Summary + Sheet Link",
+      "webhookId": "53e3fc90-cb77-4b33-b46c-66648a846896",
+      "credentials": {
+        "telegramApi": {
+          "id": "W2E71t9dfDSz0CAP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 16
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -544,
+        944
+      ],
+      "id": "14c2fdbe-8f51-4b0e-a436-65b8deafead2",
+      "name": "Wait 16s (Gemini Rate Limit)",
+      "webhookId": "b32f9ca7-4409-4f93-a77f-602d3be5ecb7"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Company Name: {{ $json['Company'] }}\nJob Title: {{ $json['Job Title'] }}\nLocation: {{ $json['Location'] }}\nSalary: {{ $json['Salary'] }}\nJob Type: {{ $json['Job_type '] }}\nCompany Website: {{ $json['Company_Website'] }}\nCompany Domain: {{ $json['Company_Domain'] }}\nJob URL: {{ $json['Job URL'] }}\n\nJob Description:\n{{ $json.Job_Description }}\n\nCandidate Resume — Smit Chavda:\n{{ $('Get Resume from Google Docs').item.json.content }}",
+        "options": {
+          "systemMessage": "You are an expert job outreach assistant.\n\nYour job is to help Smit Chavda (software developer) get interviews by:\n1) Finding the most accurate HR/recruiter email\n2) Writing a high-quality cold outreach email\n\nReturn ONLY a valid raw JSON object. No markdown, no explanation, no extra text.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCANDIDATE RESUME\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{{resume_text}}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCOMPANY BACKGROUND\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{{company_data}}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nJOB DETAILS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{{job_details}}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nTASK 1 — FIND BEST HR EMAIL (SMART LOGIC)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nStep 1 — Website-Based Detection (HIGHEST PRIORITY)\n- Use Company Domain if available\n- Assume checking these pages:\n  /careers, /jobs, /contact, /about\n- If any hiring-related email is found → use it\n\nStep 2 — Pattern-Based Email (if no real email found)\n- Use domain and generate email using priority:\n  careers@ → hr@ → jobs@ → talent@ → recruiting@ → apply@ → hello@ → hi@\n\nStep 3 — Startup Handling\n- If company looks like a startup or modern tech company:\n  → Prefer hello@ or hi@\n\nStep 4 — Fallback\n- If domain missing or very uncertain:\n  → use hr@companyname.com\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nFILTERING RULES\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nAlways choose the MOST relevant email:\n- Prefer hiring-related emails over generic ones\n- Avoid:\n  ❌ support@\n  ❌ info@ (unless nothing else exists)\n  ❌ random personal emails\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCONFIDENCE SCORING\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n- \"high\" → email likely from website or clearly correct\n- \"medium\" → inferred from domain confidently\n- \"low\" → fallback or uncertain\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nTASK 2 — WRITE UNIVERSAL HIGH-QUALITY EMAIL\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nWrite a professional, human-sounding cold email that works across all company types.\n\nSTRUCTURE:\n\n1. SUBJECT LINE (max 8–10 words)\n- Clear and specific\n- Mention role OR company\n- Avoid generic titles\n\n2. OPENING\n- Short and natural\n- Reference either:\n  → company work/product/industry OR\n  → job role context\n- If company data is weak → use role-based opening\n\n3. BODY (SKILLS MATCH)\n- Mention 2–3 relevant skills, tools, or projects\n- Use real technologies (React, Node.js, APIs, etc.)\n- Avoid vague phrases\n\n4. VALUE STATEMENT\n- One strong sentence:\n  → how Smit can contribute to THIS role/company\n\n5. CLOSING\n- Simple and confident\n- Mention resume naturally\n- End with:\n  Smit Chavda\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSTYLE RULES\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n- Natural, human tone (not robotic)\n- Clear and concise\n- Works for startups + big companies\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSTRICT RULES\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nDO NOT USE:\n❌ \"I am writing to express my interest\"\n❌ \"I came across your job posting\"\n❌ \"Please find attached\"\n❌ \"I would love the opportunity\"\n❌ \"I hope you're doing well\"\n\nEMAIL LENGTH:\n- 120–160 words\n- 3–4 short paragraphs\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\nFINAL OUTPUT FORMAT\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n{\n  \"hr_email\": \"example@company.com\",\n  \"email_confidence\": \"high\",\n  \"email_subject\": \"Clean subject line here\",\n  \"email_body\": \"Opening.\\n\\nSkills paragraph.\\n\\nValue statement.\\n\\nClosing line mentioning resume.\\n\\nBest regards,\\nSmit Chavda\"\n}"
+        }
+      },
+      "id": "313d91ab-eb11-4c66-befb-e2cc010b8d1a",
+      "name": "AI: Find HR Email + Write Email",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -336,
+        896
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.45
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        1136
+      ],
+      "id": "6c5be2dc-dc53-4217-98f8-cc3fc092e77f",
+      "name": "Gemini: Email Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "zujSSDQ82lqIrhh6",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const str = (v) => {\n  if (v === null || v === undefined || v === false) return '';\n  return String(v).trim();\n};\n\n// ── Strips forbidden/cliché phrases from email body ──────────────────────────\nconst sanitizeBody = (text) => {\n  const banned = [\n    /I am eager to contribute[^.]*\\./gi,\n    /I would love the opportunity[^.]*\\./gi,\n    /Please find (my resume|it|them) attached[^.]*\\./gi,\n    /I am writing to express my interest[^.]*\\./gi,\n    /I came across your job posting[^.]*\\./gi,\n    /My resume,\\s*detailing[^.]*\\./gi,\n  ];\n  let clean = text;\n  for (const pattern of banned) clean = clean.replace(pattern, '').trim();\n  // Collapse accidental double blank lines left behind\n  clean = clean.replace(/\\n{3,}/g, '\\n\\n');\n  return clean.trim();\n};\n\nconst items = $input.all();\nreturn items.map(item => {\n  const d = item.json;\n  const sheetData = $('Loop: One Job at a Time').item.json;\n\n  const company  = str(sheetData['Company']);\n  const jobTitle = str(sheetData['Job Title']);\n  const jobUrl   = str(sheetData['Job URL']);\n  const location = str(sheetData['Location']);\n  const salary   = str(sheetData['Salary']);\n  const domain   = str(sheetData['Company Domain']);\n\n  // ── Parse AI JSON output ────────────────────────────────────────────────────\n  let raw = str(d.output) || str(d.text) || '';\n  raw = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\n  let ai = {};\n  const fi = raw.indexOf('{');\n  const li = raw.lastIndexOf('}');\n  if (fi !== -1 && li !== -1) {\n    try { ai = JSON.parse(raw.substring(fi, li + 1)); } catch(e) {}\n  }\n\n  // Regex fallback for cut-off / broken JSON\n  const extractField = (fieldName) => {\n    const regex = new RegExp('\"' + fieldName + '\"\\\\s*:\\\\s*\"((?:[^\"\\\\\\\\]|\\\\\\\\.)*)\"');\n    const match = raw.match(regex);\n    return match ? match[1].replace(/\\\\n/g, '\\n').replace(/\\\\\"/g, '\"').trim() : '';\n  };\n\n  const hrEmail    = str(ai.hr_email)         || extractField('hr_email');\n  const subject    = str(ai.email_subject)    || extractField('email_subject');\n  let   bodyPlain  = str(ai.email_body)       || extractField('email_body');\n  const confidence = str(ai.email_confidence) || extractField('email_confidence') || 'medium';\n\n  // ── Fallback email address ──────────────────────────────────────────────────\n  const finalEmail = hrEmail || (domain ? 'careers@' + domain : '');\n  if (!finalEmail) {\n    return {\n      json: {\n        _error: true,\n        _errorMsg: 'No hr_email and no domain to guess from',\n        company, job_title: jobTitle, job_url: jobUrl\n      }\n    };\n  }\n\n  // ── Fallback body if AI returned nothing ────────────────────────────────────\n  if (!bodyPlain) {\n    bodyPlain =\n      `Your work on ${jobTitle}-related challenges at ${company} caught my attention — ` +\n      `especially the focus on building products that actually hold up at scale.\\n\\n` +\n      `My background covers the core requirements for this role, and I'm confident I can ` +\n      `deliver quality results from day one. My resume is attached.\\n\\n` +\n      `Would love to find 15 minutes to connect.\\n\\nBest regards,\\nSmit Chavda`;\n  }\n\n  // ── Sanitize body (remove any surviving forbidden phrases) ──────────────────\n  bodyPlain = sanitizeBody(bodyPlain);\n\n  // ── Convert plain-text → clean HTML ────────────────────────────────────────\n  const paras = bodyPlain\n    .split(/\\n{2,}/)\n    .map(p => p.replace(/\\n/g, ' ').trim())\n    .filter(p => p.length > 0);\n\n  const htmlBody =\n    '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#1a1a1a;max-width:580px;\">'\n    + paras.map(p => '<p style=\"margin:0 0 18px 0;\">' + p + '</p>').join('')\n    + '</div>';\n\n  return {\n    json: {\n      to_email:         finalEmail,\n      email_subject:    subject || ('Application for ' + jobTitle + ' – Smit Chavda'),\n      email_html:       htmlBody,\n      email_confidence: confidence,\n      company,\n      job_title:        jobTitle,\n      job_url:          jobUrl,\n      location,\n      salary\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        896
+      ],
+      "id": "cfdb50df-cd50-4bba-b3c2-da0ce1712f24",
+      "name": "Structure Email Output"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._error }}",
+              "value2": true,
+              "operation": "notEqual"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        240,
+        976
+      ],
+      "id": "a996989c-f33e-412a-ace5-30cbd5890186",
+      "name": "IF: Has Valid Email?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Email generation failed or was skipped — update sheet with Skipped status\nconst d = $json;\nreturn [{ json: {\n  _matchKey:     d.company || '',\n  'Send Status': 'Skipped – ' + (d._errorMsg || 'AI failed to generate email'),\n  'Recruiter Email': '',\n  'Email Sent Date': new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        1216
+      ],
+      "id": "79531b4c-54d8-4352-91f2-704c881bd6a0",
+      "name": "Set: Skipped Status"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1N4CEAgI1FBHdntqJY2xvdHqQ_M5S01x8",
+          "mode": "list",
+          "cachedResultName": "Smitchavda_cv.pdf",
+          "cachedResultUrl": "https://drive.google.com/file/d/1N4CEAgI1FBHdntqJY2xvdHqQ_M5S01x8/view?usp=drivesdk"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        480,
+        816
+      ],
+      "id": "918df05f-cc47-4acf-9300-4f6e57b365b3",
+      "name": "Google Drive: Get Resume PDF",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Q6WBidVilDURPByR",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        896
+      ],
+      "id": "64e28857-25c7-453b-9e47-0cb57fcae25d",
+      "name": "Wait 90s Before Sending",
+      "webhookId": "de0e9d22-1c31-4cc3-a48a-18bd07909b79"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Structure Email Output').item.json.to_email }}",
+        "subject": "={{ $('Structure Email Output').item.json.email_subject }}",
+        "message": "={{ $('Structure Email Output').item.json.email_html }}",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        928,
+        896
+      ],
+      "id": "d23abc55-dd22-4313-a6bf-e1ba4dd62b9c",
+      "name": "Send Gmail with Resume",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "webhookId": "465b6ad4-e28f-416a-aeb9-c7b4d1e26bdd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "b5Oq6hmiwi7ay7nh",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const src = $('IF: Has Valid Email?').item.json;\nreturn [{ json: {\n  _matchKey:         src.company || '',\n  'Send Status':     'Sent',\n  'Recruiter Email': src.to_email || '',\n  'Email Sent Date': new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        800
+      ],
+      "id": "40ec58bf-7a6c-44ca-80be-78e3d8429ab0",
+      "name": "Set: Sent Status"
+    },
+    {
+      "parameters": {
+        "jsCode": "const src = $('IF: Has Valid Email?').item.json;\nconst errMsg = $json?.error?.message || 'Gmail send failed after retries';\nreturn [{ json: {\n  _matchKey:         src.company || '',\n  'Send Status':     'Failed – ' + errMsg,\n  'Recruiter Email': src.to_email || '',\n  'Email Sent Date': new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        992
+      ],
+      "id": "db878a4a-072c-4953-9d0d-0c9b71b4a602",
+      "name": "Set: Failed Status"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE",
+          "mode": "list",
+          "cachedResultName": "job hunt",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 388744968,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ObbN-YUb-IZJjlion3sjDk2lioSR5v3kRwPPXotvdTE/edit#gid=388744968"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company": "={{ $json['_matchKey'] }}",
+            "Send Status": "={{ $json['Send Status'] }}",
+            "Recruiter Email": "={{ $json['Recruiter Email'] }}",
+            "row_number": 0
+          },
+          "matchingColumns": [
+            "Company"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Salary",
+              "displayName": "Salary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Applicants",
+              "displayName": "Applicants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Recruiter Email",
+              "displayName": "Recruiter Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Match %",
+              "displayName": "Match %",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Strengths",
+              "displayName": "Strengths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Gaps",
+              "displayName": "Gaps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Job URL",
+              "displayName": "Job URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Status",
+              "displayName": "Send Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1392,
+        1040
+      ],
+      "id": "3787ee6b-9a38-426a-b0ae-1927ce88f58b",
+      "name": "Update Sheet: Status + Email",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Ft8AWZkw04rv05zI",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Form Trigger: Job Preferences": {
+      "main": [
+        [
+          {
+            "node": "Build LinkedIn Search URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LinkedIn Search URL": {
+      "main": [
+        [
+          {
+            "node": "Apify: Scrape LinkedIn Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify: Scrape LinkedIn Jobs": {
+      "main": [
+        [
+          {
+            "node": "Read: Existing Sheet Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read: Existing Sheet Rows": {
+      "main": [
+        [
+          {
+            "node": "Get Resume from Google Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Resume from Google Docs": {
+      "main": [
+        [
+          {
+            "node": "Prepare + Deduplicate Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare + Deduplicate Jobs": {
+      "main": [
+        [
+          {
+            "node": "IF: New Jobs Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: New Jobs Found?": {
+      "main": [
+        [
+          {
+            "node": "Telegram: No New Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save ALL Job Details to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save ALL Job Details to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Capture Run Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Run Context": {
+      "main": [
+        [
+          {
+            "node": "Read: Pending Jobs from Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read: Pending Jobs from Sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop: One Job at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop: One Job at a Time": {
+      "main": [
+        [
+          {
+            "node": "Read Sheet for Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 16s (Gemini Rate Limit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet for Summary": {
+      "main": [
+        [
+          {
+            "node": "Build Summary Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary Message": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Summary + Sheet Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 16s (Gemini Rate Limit)": {
+      "main": [
+        [
+          {
+            "node": "AI: Find HR Email + Write Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini: Email Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: Find HR Email + Write Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Find HR Email + Write Email": {
+      "main": [
+        [
+          {
+            "node": "Structure Email Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Email Output": {
+      "main": [
+        [
+          {
+            "node": "IF: Has Valid Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Has Valid Email?": {
+      "main": [
+        [
+          {
+            "node": "Google Drive: Get Resume PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: Skipped Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Get Resume PDF": {
+      "main": [
+        [
+          {
+            "node": "Wait 90s Before Sending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 90s Before Sending": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail with Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Gmail with Resume": {
+      "main": [
+        [
+          {
+            "node": "Set: Sent Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: Failed Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Sent Status": {
+      "main": [
+        [
+          {
+            "node": "Update Sheet: Status + Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Failed Status": {
+      "main": [
+        [
+          {
+            "node": "Update Sheet: Status + Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Skipped Status": {
+      "main": [
+        [
+          {
+            "node": "Update Sheet: Status + Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Sheet: Status + Email": {
+      "main": [
+        [
+          {
+            "node": "Loop: One Job at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "70c4d36a-65a6-456d-8a3d-512c3bd296ad",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6567fe251da4635e91cdf28536b0d31f9fab7b63d4010c8c23d50b6a16c59201"
+  },
+  "id": "FdBh1fTGO4rhqMkY",
+  "tags": []
+}
