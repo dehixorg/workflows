@@ -1,0 +1,544 @@
+{
+  "name": "job hunter with email",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/1nwnrPXwslg_f7CAOlHtZhs0bE8DnvazmY3b7U_QHMO0/edit?usp=sharing"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        4464,
+        1952
+      ],
+      "id": "bac63758-8a08-4413-98c0-c99f54cff13a",
+      "name": "Get User Resume from Google Docs",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "eChnTzCI1QRVPRez",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge resume with each job for processing\nconst jobs = $('Filter Jobs').all();\nconst resume = $('Get User Resume from Google Docs').first().json;\n\nconst mergedData = jobs.map(job => ({\n  json: {\n    job: job.json,\n    resume: resume\n  }\n}));\n\nreturn mergedData;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4672,
+        2080
+      ],
+      "id": "de955f35-8cb8-4e28-9077-f861a2906c95",
+      "name": "Merge Resume with Jobs"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Job Title: {{ $json.job.title }}\nCompany: {{ $json.job.companyName }}\nJob Description: {{ $json.job.descriptionHtml }}\nLocation: {{ $json.job.location }}\n\n---\n\nUser Resume: {{ $json.resume.content }}",
+        "options": {
+          "systemMessage": "You are an expert career coach and job application specialist. Your task is to:\n\n1. **Find/Generate Company Email**: Use Perplexity Search Tool FIRST to find the actual company recruitment/careers email. Search for \"[company name] careers email\" or \"[company name] recruitment contact\". If you can't find it, construct the most likely email using patterns like:\n   - careers@[company].com\n   - hr@[company].com\n   - jobs@[company].com\n   - recruitment@[company].com\n\n2. **Write a Tailored Cover Letter**: Create a compelling, personalized cover letter that:\n   - Addresses the specific job requirements\n   - Highlights relevant experience from the user's resume\n   - Shows enthusiasm for the company and role\n   - Is professional yet personable\n   - Is 250-350 words long\n   - Follows standard business letter format\n\n3. **Match Analysis**: Provide a brief analysis of how well the candidate matches this role:\n   - Match percentage (0-100%)\n   - Top 3 strengths for this role\n   - Top 2 gaps or areas to emphasize differently\n   - Specific tips for the application\n\n**OUTPUT FORMAT** (JSON ONLY - NO OTHER TEXT):\n```json\n{\n  \"company_email\": \"email@company.com\",\n  \"email_confidence\": \"high/medium/low\",\n  \"cover_letter\": \"[Full cover letter text]\",\n  \"match_analysis\": {\n    \"match_percentage\": 85,\n    \"strengths\": [\"strength 1\", \"strength 2\", \"strength 3\"],\n    \"gaps\": [\"gap 1\", \"gap 2\"],\n    \"application_tips\": [\"tip 1\", \"tip 2\"]\n  }\n}\n```\n\nBe specific, honest, and helpful. ALWAYS use Perplexity Search Tool first to find real company emails."
+        }
+      },
+      "id": "f212d760-f802-41ad-a870-db32f886ce4e",
+      "name": "AI Agent - Process Each Job",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        4896,
+        2080
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and structure the output for email sending\nconst items = $input.all();\n\nconst structuredResults = items.map((item, index) => {\n  let aiResponse = item.json.output || item.json.text || '';\n  \n  // Clean up the response - remove markdown code blocks if present\n  aiResponse = aiResponse.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  \n  try {\n    // Try to parse JSON response from AI\n    const parsed = JSON.parse(aiResponse);\n    \n    // Get job details from the original input\n    const jobTitle = item.json.job?.title || 'Position';\n    const companyName = item.json.job?.companyName || 'Company';\n    const jobUrl = item.json.job?.url || '';\n    \n    // Create email subject\n    const emailSubject = `Application for ${jobTitle} - ${companyName}`;\n    \n    // Create email body with cover letter and resume\n    const emailBody = `Dear Hiring Manager,\n\n${parsed.cover_letter}\n\nThank you for considering my application.\n\nBest regards,\nHemant Kadam\n\n---\n\nRESUME:\n\n${item.json.resume?.content || 'Resume content'}\n\n---\n\nJob URL: ${jobUrl}\nMatch Score: ${parsed.match_analysis?.match_percentage}%`;\n    \n    return {\n      json: {\n        // Email data\n        to_email: parsed.company_email,\n        subject: emailSubject,\n        body: emailBody,\n        \n        // Job details\n        job_title: jobTitle,\n        company: companyName,\n        job_url: jobUrl,\n        \n        // Analysis data\n        email_confidence: parsed.email_confidence,\n        cover_letter: parsed.cover_letter,\n        match_percentage: parsed.match_analysis?.match_percentage,\n        strengths: parsed.match_analysis?.strengths,\n        gaps: parsed.match_analysis?.gaps,\n        application_tips: parsed.match_analysis?.application_tips\n      }\n    };\n  } catch (e) {\n    // If parsing fails, return error info\n    return {\n      json: {\n        error: true,\n        error_message: e.message,\n        job_title: item.json.job?.title || 'Unknown',\n        company: item.json.job?.companyName || 'Unknown',\n        raw_response: aiResponse\n      }\n    };\n  }\n});\n\nreturn structuredResults;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5248,
+        2080
+      ],
+      "id": "fe0cebe7-b8e6-4338-abfd-e1995b4a6e9b",
+      "name": "Structure Output for Email"
+    },
+    {
+      "parameters": {
+        "model": "sonar-pro",
+        "messages": {
+          "message": [
+            {
+              "content": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('message0_Text', ``, 'string') }}"
+            }
+          ]
+        },
+        "simplify": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Simplify_Output', ``, 'boolean') }}",
+        "options": {},
+        "requestOptions": {}
+      },
+      "id": "0bdba2a1-f396-4cff-b907-50fd577f0121",
+      "name": "Perplexity Search Tool",
+      "type": "n8n-nodes-base.perplexityTool",
+      "position": [
+        5232,
+        2320
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        4864,
+        2400
+      ],
+      "id": "cd135ba1-7be9-4f5d-a4c4-cac8a0716bb1",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tYrvx5OI8UGVgz4e",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true,
+              "operation": "notEqual"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5456,
+        2112
+      ],
+      "id": "9275e615-ba9a-4bce-bc57-601f4fa0e186",
+      "name": "Filter Out Errors"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=When writing emails, ALWAYS follow this formatting:\n\n{{ $json[\"resume\"] }}\n{{ $json[\"job_details\"] }}\n\nGENERAL RULE:\n- Always output the email body as VALID HTML (no Markdown).\n- Use only simple tags: <p>, <strong>, <em>, <ul>, <li>, <br>, <a>.\n- This HTML string must be passed into the \"Message\" field of the Gmail tool.\n\n1. Use short paragraphs (2–3 lines max) with proper spacing using separate <p> tags.\n2. Never write long walls of text.\n3. Maintain a warm, professional, and personalized tone.\n4. Use <strong> tags to highlight skills, experience, tools, and achievements.\n5. Include a bullet-point section with 3–5 strong highlights using <ul><li>.\n6. Ensure proper spacing for Gmail (use <p> and <br> correctly).\n\nEMAIL STRUCTURE (HTML):\n----------------------------------\n\n<p>Dear Hiring Team,</p>\n\n<p>\n  I came across the <strong>{{ $json[\"job_title\"] }}</strong> role at <strong>{{ $json[\"company_name\"] }}</strong> via {{ $json[\"job_source\"] }}.  \n  I am excited about this opportunity and believe my background aligns well with your requirements.\n</p>\n\n<p>\n  I have experience in <strong>{{ $json[\"skills_summary\"] }}</strong> and have worked on projects involving <strong>{{ $json[\"tools_technologies\"] }}</strong>.  \n  My background enables me to contribute effectively to your team.\n</p>\n\n<p><strong>Key Highlights:</strong></p>\n<ul>\n  <li><strong>{{ $json[\"highlight_1\"] }}</strong></li>\n  <li><strong>{{ $json[\"highlight_2\"] }}</strong></li>\n  <li><strong>{{ $json[\"highlight_3\"] }}</strong></li>\n  <li><strong>{{ $json[\"highlight_4\"] }}</strong></li>\n  <li><strong>{{ $json[\"highlight_5\"] }}</strong></li>\n</ul>\n\n<p>\n  I am enthusiastic about contributing to <strong>{{ $json[\"company_name\"] }}</strong> and adding value to your team.  \n  Please find my resume attached. I would welcome the opportunity to discuss this further.\n</p>\n\n<p>\n  Thank you,<br>\n  <strong>{{ $json[\"name\"] }}</strong><br>\n  Mobile: {{ $json[\"phone\"] }}<br>\n  Email: {{ $json[\"email\"] }}<br>\n  LinkedIn: {{ $json[\"linkedin\"] }}\n</p>\n\n----------------------------------\n\nGOOGLE DRIVE + ATTACHMENT INSTRUCTIONS:\n- Use Google Drive node BEFORE Gmail node.\n- Fetch the resume file using:\n  - File ID OR File Name: {{ $json[\"resume_file_id\"] }} OR {{ $json[\"resume_file_name\"] }}\n- Operation: \"Download\"\n- This will return binary data (usually in \"data\" field).\n\nGMAIL ATTACHMENT INSTRUCTIONS:\n- In Gmail node:\n  - \"Attachments\" → Add Binary Property\n  - Binary Property Name: \"data\" (or whatever Drive node outputs)\n  - File Name: {{ $json[\"resume_file_name\"] || \"Resume.pdf\" }}\n\nIMPORTANT:\n- Ensure Google Drive node is connected before Gmail node.\n- Ensure binary data is passed correctly to Gmail.\n- Do NOT convert file manually — use binary flow.\n\nSEND DIRECT MAIL RULE:\nAfter generating the HTML email:\n\n- Call Gmail node immediately with:\n  - \"To\": {{ $json[\"recipient_email\"] }}\n  - \"Subject\": \"Application for {{ $json['job_title'] }} at {{ $json['company_name'] }}\"\n  - \"Message\": (HTML email body as a single string)\n  - \"Attachments\": Binary file from Google Drive\n\nSTRICT:\n- Do NOT ask for confirmation.\n- Do NOT output plain text.\n- Always send via Gmail node with HTML + attachment.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        5744,
+        2064
+      ],
+      "id": "9c9ec7ed-54a6-450b-99c1-b356f9f2bee0",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('To', ``, 'string') }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        6080,
+        2400
+      ],
+      "id": "3b2dddfc-9079-4919-b591-996c02145537",
+      "name": "Send a message in Gmail",
+      "webhookId": "2b3f7e6e-d62d-47d4-a6e2-bc7f7914c42b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "s1s1tXuk6Lt30Npj",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        5664,
+        2336
+      ],
+      "id": "7cca0996-5202-4dae-9206-3382e52c86a8",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tYrvx5OI8UGVgz4e",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Job Hunt – Search Preferences",
+        "formDescription": "Fill in your job search criteria and click Submit. The workflow will run automatically.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Job Role",
+              "placeholder": "e.g. React Developer, Node.js Engineer, n8n Automation",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Location",
+              "placeholder": "e.g. Bangalore, India, Mumbai",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Remote Work?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "No"
+                  },
+                  {
+                    "option": "Yes – Remote Only"
+                  },
+                  {
+                    "option": "Yes – Hybrid OK"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Job Type",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Full-time"
+                  },
+                  {
+                    "option": "Contract / Freelance"
+                  },
+                  {
+                    "option": "Internship"
+                  },
+                  {
+                    "option": "Part-time"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Experience Level",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Entry / Fresher (0-2 years)"
+                  },
+                  {
+                    "option": "Mid Level (2-5 years)"
+                  },
+                  {
+                    "option": "Senior / Lead (5+ years)"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        3552,
+        2080
+      ],
+      "id": "40629e0d-998a-4ec2-b31e-6770c5421d45",
+      "name": "Form Trigger: Job Preferences",
+      "webhookId": "ea3c67aa-8f2c-4326-a77f-ac1151a71270"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read structured form output — handles both form field names and pre-processed JSON keys\nconst f = $json;\n\nconst role      = String(f['Job Role']              || f['role']            || '').trim() || 'Software Developer';\nconst location  = String(f['Location']              || f['location']        || '').trim() || 'India';\nconst remoteRaw = String(f['Remote Work?']          || f['isRemote']        || '').toLowerCase();\nconst jtRaw     = String(f['Job Type']              || f['jobType']         || '').toLowerCase();\nconst elRaw     = String(f['Experience Level']      || f['experienceLevel'] || '').toLowerCase();\nconst chatId    = String(f['Your Telegram Chat ID'] || f['telegramChatId']  || '').trim();\n\nconst isRemote = remoteRaw.includes('yes') || remoteRaw === 'true';\n\nconst jtParam =\n  jtRaw.includes('contract') || jtRaw.includes('freelance') ? '&f_JT=C' :\n  jtRaw.includes('intern')   ? '&f_JT=I' :\n  jtRaw.includes('part')     ? '&f_JT=P' : '&f_JT=F';\n\nconst remoteParam = isRemote ? '&f_WT=2' : '';\n\nconst expParam =\n  elRaw.includes('entry') || elRaw.includes('fresher') ? '&f_E=1,2' :\n  elRaw.includes('senior') || elRaw.includes('lead')   ? '&f_E=4,5' : '&f_E=3,4';\n\nconst searchUrl =\n  'https://www.linkedin.com/jobs/search/?keywords=' + encodeURIComponent(role) +\n  '&location=' + encodeURIComponent(location) +\n  remoteParam + jtParam + expParam +\n  '&f_TPR=r604800&position=1&pageNum=0';\n\nreturn [{\n  json: {\n    role,\n    location,\n    isRemote,\n    jobType:         jtRaw,\n    experienceLevel: elRaw,\n    searchUrl,\n    telegramChatId:  chatId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3776,
+        2080
+      ],
+      "id": "3fc1bd6b-6582-4768-84dc-943674ae0acf",
+      "name": "Build LinkedIn Search URL"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/curious_coder~linkedin-jobs-scraper/run-sync-get-dataset-items?token=apify_api_nNMilujzeazJDvzAj5afA90Qsf3eyR4DDJwo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"count\": 25,\n  \"scrapeCompany\": true,\n  \"urls\": [\"{{ $json.searchUrl }}\"]\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4000,
+        2080
+      ],
+      "id": "37288cfe-b59d-4624-987d-5704c4fec3dd",
+      "name": "Apify: Scrape LinkedIn Jobs",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "XgcU2bwgR9pBuwM0",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1N4CEAgI1FBHdntqJY2xvdHqQ_M5S01x8",
+          "mode": "list",
+          "cachedResultName": "Smitchavda_cv.pdf",
+          "cachedResultUrl": "https://drive.google.com/file/d/1N4CEAgI1FBHdntqJY2xvdHqQ_M5S01x8/view?usp=drivesdk"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTool",
+      "typeVersion": 3,
+      "position": [
+        5856,
+        2432
+      ],
+      "id": "21e9eb2e-ea9e-44f6-916a-6d2d9267664c",
+      "name": "Download file in Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "zir7yDh4X0wrp9ZN",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get all incoming items\nconst items = $input.all();\n\n// 2. Score each job based on your criteria\nconst scoredJobs = items.map(item => {\n  let score = 0;\n  const data = item.json;\n  \n  if (data.companyName || data.company) score += 10;\n  if (data.description && data.description.length > 100) score += 15;\n  if (data.location) score += 5;\n  if (data.salary) score += 8;\n  \n  if (data.applicants) {\n    const applicantCount = parseInt(data.applicants);\n    if (applicantCount < 10) score += 10;\n    else if (applicantCount < 50) score += 5;\n  }\n  \n  return {\n    json: data,\n    score: score\n  };\n});\n\n// 3. Sort by score (highest quality first) \n// This ensures we keep the BEST job if a company has multiple listings\nscoredJobs.sort((a, b) => b.score - a.score);\n\n// 4. Filter out duplicates\nconst uniqueJobs = [];\nconst seenCompanies = new Set();\n\nfor (const item of scoredJobs) {\n  // Use companyName (from your LinkedIn scrape) as the unique key\n  const company = item.json.companyName || item.json.company;\n  \n  // Only add if we haven't seen this company name yet\n  if (company && !seenCompanies.has(company)) {\n    seenCompanies.add(company);\n    uniqueJobs.push({ json: item.json });\n  }\n}\n\n// 5. Return the full list of unique company jobs\nreturn uniqueJobs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4224,
+        2080
+      ],
+      "id": "d6ac10b3-c9a7-42d6-8dd9-2c34d5b02891",
+      "name": "Filter Jobs"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Merge Resume with Jobs": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Process Each Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Resume from Google Docs": {
+      "main": [
+        [
+          {
+            "node": "Merge Resume with Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Process Each Job": {
+      "main": [
+        [
+          {
+            "node": "Structure Output for Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Output for Email": {
+      "main": [
+        [
+          {
+            "node": "Filter Out Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Out Errors": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity Search Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Process Each Job",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Process Each Job",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form Trigger: Job Preferences": {
+      "main": [
+        [
+          {
+            "node": "Build LinkedIn Search URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LinkedIn Search URL": {
+      "main": [
+        [
+          {
+            "node": "Apify: Scrape LinkedIn Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify: Scrape LinkedIn Jobs": {
+      "main": [
+        [
+          {
+            "node": "Filter Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file in Google Drive": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Filter Jobs": {
+      "main": [
+        [
+          {
+            "node": "Merge Resume with Jobs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get User Resume from Google Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "69e64bcd-de6d-47b7-b13e-64ac59a975c8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1841bf2981fe9616fb8381107857099c2c4381f0f4f2ceaec11bd893781c492a"
+  },
+  "id": "tVEodylTc7osdqRo",
+  "tags": []
+}
